@@ -26,6 +26,9 @@ ANTHROPIC_API_KEY=your_anthropic_api_key  # Get from https://console.anthropic.c
 OPENAI_API_KEY=your_openai_api_key  # Get from https://platform.openai.com (GPT-5)
 GEMINI_API_KEY=your_gemini_api_key  # Get from https://aistudio.google.com/app/apikey
 GROQ_API_KEY=your_groq_api_key  # Get from https://console.groq.com (Fast inference - Kimi K2 recommended)
+
+# OpenRouter (unified API for many models)
+OPENROUTER_API_KEY=your_openrouter_api_key  # Get from https://openrouter.ai
 ```
 
 3. **Run**

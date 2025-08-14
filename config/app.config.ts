@@ -35,7 +35,10 @@ export const appConfig = {
       'openai/gpt-5',
       'moonshotai/kimi-k2-instruct',
       'anthropic/claude-sonnet-4-20250514',
-      'google/gemini-2.5-pro'
+      'google/gemini-2.5-pro',
+      'openrouter/openai/gpt-4o-mini',
+      'openrouter/anthropic/claude-3.7-sonnet',
+      'openrouter/google/gemini-2.0-flash-exp'
     ],
     
     // Model display names
@@ -43,7 +46,10 @@ export const appConfig = {
       'openai/gpt-5': 'GPT-5',
       'moonshotai/kimi-k2-instruct': 'Kimi K2 Instruct',
       'anthropic/claude-sonnet-4-20250514': 'Sonnet 4',
-      'google/gemini-2.5-pro': 'Gemini 2.5 Pro'
+      'google/gemini-2.5-pro': 'Gemini 2.5 Pro',
+      'openrouter/openai/gpt-4o-mini': 'OpenRouter: GPT-4o mini',
+      'openrouter/anthropic/claude-3.7-sonnet': 'OpenRouter: Sonnet 3.7',
+      'openrouter/google/gemini-2.0-flash-exp': 'OpenRouter: Gemini 2.0 Flash Exp'
     },
     
     // Temperature settings for non-reasoning models

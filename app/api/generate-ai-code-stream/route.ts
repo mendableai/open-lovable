@@ -28,6 +28,11 @@ const openai = createOpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+const openrouter = createOpenAI({
+  apiKey: process.env.OPENROUTER_API_KEY,
+  baseURL: process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1',
+});
+
 // Helper function to analyze user preferences from conversation history
 function analyzeUserPreferences(messages: ConversationMessage[]): {
   commonPatterns: string[];
@@ -1154,11 +1159,26 @@ CRITICAL: When files are provided in the context:
         // Determine which provider to use based on model
         const isAnthropic = model.startsWith('anthropic/');
         const isGoogle = model.startsWith('google/');
+        const isOpenRouter = model.startsWith('openrouter/');
         const isOpenAI = model.startsWith('openai/gpt-5');
-        const modelProvider = isAnthropic ? anthropic : (isOpenAI ? openai : (isGoogle ? googleGenerativeAI : groq));
-        const actualModel = isAnthropic ? model.replace('anthropic/', '') : 
-                           (model === 'openai/gpt-5') ? 'gpt-5' :
-                           (isGoogle ? model.replace('google/', '') : model);
+        const modelProvider = isAnthropic
+          ? anthropic
+          : isOpenAI
+          ? openai
+          : isGoogle
+          ? googleGenerativeAI
+          : isOpenRouter
+          ? openrouter
+          : groq;
+        const actualModel = isAnthropic
+          ? model.replace('anthropic/', '')
+          : model === 'openai/gpt-5'
+          ? 'gpt-5'
+          : isGoogle
+          ? model.replace('google/', '')
+          : isOpenRouter
+          ? model.replace('openrouter/', '')
+          : model;
 
         // Make streaming API call with appropriate provider
         const streamOptions: any = {

@@ -21,6 +21,11 @@ const openai = createOpenAI({
   baseURL: process.env.OPENAI_BASE_URL,
 });
 
+const openrouter = createOpenAI({
+  apiKey: process.env.OPENROUTER_API_KEY,
+  baseURL: process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1',
+});
+
 // Schema for the AI's search plan - not file selection!
 const searchPlanSchema = z.object({
   editType: z.enum([
@@ -103,6 +108,8 @@ export async function POST(request: NextRequest) {
       } else {
         aiModel = openai(model.replace('openai/', ''));
       }
+    } else if (model.startsWith('openrouter/')) {
+      aiModel = openrouter(model.replace('openrouter/', ''));
     } else if (model.startsWith('google/')) {
       aiModel = createGoogleGenerativeAI(model.replace('google/', ''));
     } else {
