@@ -138,6 +138,352 @@
   --radius: 0.5rem;
 }
 
+/* Dark theme overrides */
+.dark {
+  --color-background: hsl(240 10% 3.9%);
+  --color-foreground: hsl(0 0% 98%);
+  --color-card: hsl(240 10% 3.9%);
+  --color-card-foreground: hsl(0 0% 98%);
+  --color-popover: hsl(240 10% 3.9%);
+  --color-popover-foreground: hsl(0 0% 98%);
+  --color-primary: hsl(0 0% 98%);
+  --color-primary-foreground: hsl(240 5.9% 10%);
+  --color-secondary: hsl(240 3.7% 15.9%);
+  --color-secondary-foreground: hsl(0 0% 98%);
+  --color-muted: hsl(240 3.7% 15.9%);
+  --color-muted-foreground: hsl(240 5% 64.9%);
+  --color-accent: hsl(240 3.7% 15.9%);
+  --color-accent-foreground: hsl(0 0% 98%);
+  --color-destructive: hsl(0 62.8% 30.6%);
+  --color-destructive-foreground: hsl(0 0% 98%);
+  --color-border: hsl(240 3.7% 15.9%);
+  --color-input: hsl(240 3.7% 15.9%);
+  --color-ring: hsl(240 4.9% 83.9%);
+}
+
+/* Dark mode styles for common elements */
+.dark .bg-white {
+  background-color: hsl(240 10% 3.9%);
+}
+
+/* !important */
+.dark .text-gray-900,
+.dark .text-zinc-900 {
+  color: hsl(0 0% 98%);
+}
+
+/* Dark mode for specific color values */
+.dark [class*="text-[#36322F]"] {
+  color: hsl(0 0% 98%);
+}
+
+.dark .text-gray-600,
+.dark .text-zinc-500,
+.dark .text-zinc-600 {
+  color: hsl(240 5% 64.9%);
+}
+
+.dark .bg-gray-50,
+.dark .bg-gray-100 {
+  background-color: hsl(240 3.7% 15.9%);
+}
+
+.dark .border-gray-200,
+.dark .border-zinc-300 {
+  border-color: hsl(240 3.7% 15.9%);
+}
+
+.dark .bg-gray-900 {
+  background-color: hsl(240 10% 3.9%);
+}
+
+/* Dark mode for specific Open Lovable elements */
+.dark .bg-orange-400\/50,
+.dark .bg-orange-300\/30,
+.dark .bg-orange-200\/20 {
+  background-color: hsl(240 10% 3.9%);
+}
+
+.dark .bg-yellow-300\/40 {
+  background-color: hsl(240 10% 3.9%);
+}
+
+/* Dark mode for design style buttons */
+.dark .p-3.rounded-lg.border.border-gray-200.bg-white {
+  background-color: hsl(240 3.7% 15.9%);
+  border-color: hsl(240 3.7% 15.9%);
+  color: hsl(0 0% 98%);
+}
+
+.dark .p-3.rounded-lg.border.border-gray-200.bg-white:hover {
+  background-color: hsl(240 3.7% 20%);
+  border-color: hsl(25 95% 53%);
+}
+
+.dark .p-3.rounded-lg.border.border-gray-200.bg-white .text-sm.font-medium {
+  color: hsl(0 0% 98%);
+}
+
+.dark .p-3.rounded-lg.border.border-gray-200.bg-white .text-xs.text-gray-500 {
+  color: hsl(240 5% 64.9%);
+}
+
+/* Dark mode for selected/active design style buttons */
+.dark .p-3.rounded-lg.border.border-orange-200.bg-orange-50\/50 {
+  background-color: hsl(25 95% 53%);
+  border-color: hsl(25 95% 53%);
+  color: hsl(240 10% 3.9%);
+}
+
+.dark .p-3.rounded-lg.border.border-orange-200.bg-orange-50\/50 .text-sm.font-medium {
+  color: hsl(240 10% 3.9%);
+}
+
+.dark .p-3.rounded-lg.border.border-orange-200.bg-orange-50\/50 .text-xs.text-gray-500 {
+  color: hsl(240 10% 3.9%);
+  opacity: 0.8;
+}
+
+/* Dark mode for selected buttons with orange-400 border and orange-50 background */
+.dark .p-3.rounded-lg.border.border-orange-400.bg-orange-50 {
+  background-color: hsl(240 3.7% 15.9%);
+  border-color: hsl(25 95% 53%);
+  border-width: 2px;
+  color: hsl(0 0% 98%);
+  box-shadow: 0 0 0 1px hsl(25 95% 53%), 0 4px 12px -1px rgba(0, 0, 0, 0.15);
+}
+
+.dark .p-3.rounded-lg.border.border-orange-400.bg-orange-50 .text-sm.font-medium {
+  color: hsl(0 0% 98%);
+  font-weight: 600;
+}
+
+.dark .p-3.rounded-lg.border.border-orange-400.bg-orange-50 .text-xs.text-gray-500 {
+  color: hsl(240 5% 64.9%);
+  font-weight: 500;
+}
+
+/* Light mode improvements for selected buttons */
+.p-3.rounded-lg.border.border-orange-400.bg-orange-50 {
+  background-color: hsl(0 0% 98%);
+  border-color: hsl(25 95% 53%);
+  border-width: 2px;
+  color: hsl(240 10% 3.9%);
+  box-shadow: 0 0 0 1px hsl(25 95% 53%), 0 4px 12px -1px rgba(0, 0, 0, 0.1);
+}
+
+.p-3.rounded-lg.border.border-orange-400.bg-orange-50 .text-sm.font-medium {
+  color: hsl(240 10% 3.9%);
+  font-weight: 600;
+}
+
+.p-3.rounded-lg.border.border-orange-400.bg-orange-50 .text-xs.text-gray-500 {
+  color: hsl(240 5% 40%);
+  font-weight: 500;
+}
+
+/* Dark mode for hover states on design style buttons */
+.dark .p-3.rounded-lg.border.border-gray-200.bg-white:hover {
+  background-color: hsl(25 95% 53%);
+  border-color: hsl(25 95% 53%);
+  color: hsl(240 10% 3.9%);
+}
+
+.dark .p-3.rounded-lg.border.border-gray-200.bg-white:hover .text-sm.font-medium {
+  color: hsl(240 10% 3.9%);
+}
+
+.dark .p-3.rounded-lg.border.border-gray-200.bg-white:hover .text-xs.text-gray-500 {
+  color: hsl(240 10% 3.9%);
+  opacity: 0.8;
+}
+
+/* Dark mode for dropdowns and selectors */
+.dark .bg-white {
+  background-color: hsl(240 10% 3.9%);
+}
+
+/* Dark mode for design container */
+.dark .bg-white\/80.backdrop-blur-sm.border.border-gray-200.rounded-xl.p-4.shadow-sm {
+  background-color: hsl(240 10% 3.9% / 0.9);
+  border-color: hsl(240 3.7% 15.9%);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 32px -4px rgba(0, 0, 0, 0.3), 0 2px 8px -2px rgba(0, 0, 0, 0.1);
+}
+
+/* Light mode improvements for design container */
+.bg-white\/80.backdrop-blur-sm.border.border-gray-200.rounded-xl.p-4.shadow-sm {
+  background-color: hsl(0 0% 100% / 0.9);
+  border-color: hsl(240 5.9% 90%);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 32px -4px rgba(0, 0, 0, 0.1), 0 2px 8px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* Dark mode for loading spinner and text */
+.dark .w-16.h-16.border-4.border-orange-200.border-t-orange-500.rounded-full.animate-spin.mx-auto {
+  border-color: hsl(25 95% 53%);
+  border-top-color: hsl(25 95% 70%);
+}
+
+.dark .text-xl.font-semibold.text-gray-800 {
+  color: hsl(0 0% 98%);
+}
+
+.dark .text-gray-600.text-sm {
+  color: hsl(240 5% 64.9%);
+}
+
+/* Dark mode for file explorer */
+.dark .flex-1.overflow-y-auto.p-2.scrollbar-hide {
+  background-color: hsl(240 10% 3.9%);
+}
+
+.dark .text-sm {
+  color: hsl(0 0% 98%);
+}
+
+.dark .flex.items-center.gap-1.py-1.px-2.hover\:bg-gray-100.rounded.cursor-pointer.text-gray-700 {
+  color: hsl(0 0% 98%);
+}
+
+.dark .flex.items-center.gap-1.py-1.px-2.hover\:bg-gray-100.rounded.cursor-pointer.text-gray-700:hover {
+  background-color: hsl(240 3.7% 15.9%);
+}
+
+/* Dark mode for file items */
+.dark .text-xs.flex.items-center.gap-1 {
+  color: hsl(0 0% 98%);
+}
+
+.dark .text-xs.flex.items-center.gap-1:hover {
+  color: hsl(25 95% 70%);
+  background-color: hsl(240 3.7% 15.9%);
+  border-radius: 0.375rem;
+  padding: 0.25rem 0.5rem;
+  transition: all 0.2s ease;
+}
+
+/* Light mode improvements for file items */
+.text-xs.flex.items-center.gap-1 {
+  color: hsl(240 10% 3.9%);
+  transition: all 0.2s ease;
+}
+
+/* Theme toggle button improvements */
+.dark .rounded-full.fixed.bottom-4.right-4.z-\[9999\].bg-white.dark\:bg-gray-800.border-gray-300.dark\:border-gray-600.text-gray-700.dark\:text-gray-200.hover\:bg-gray-50.dark\:hover\:bg-gray-700.shadow-lg.transition-all.duration-200.hover\:scale-110 {
+  background-color: hsl(240 10% 3.9%);
+  border-color: hsl(240 3.7% 15.9%);
+  color: hsl(0 0% 98%);
+  box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
+}
+
+.dark .rounded-full.fixed.bottom-4.right-4.z-\[9999\].bg-white.dark\:bg-gray-800.border-gray-300.dark\:border-gray-600.text-gray-700.dark\:text-gray-200.hover\:bg-gray-50.dark\:hover\:bg-gray-700.shadow-lg.transition-all.duration-200.hover\:scale-110:hover {
+  background-color: hsl(240 3.7% 15.9%);
+  border-color: hsl(25 95% 53%);
+  transform: scale(1.1);
+}
+
+/* Light mode theme toggle improvements */
+.rounded-full.fixed.bottom-4.right-4.z-\[9999\].bg-white.dark\:bg-gray-800.border-gray-300.dark\:border-gray-600.text-gray-700.dark\:text-gray-200.hover\:bg-gray-50.dark\:hover\:bg-gray-700.shadow-lg.transition-all.duration-200.hover\:scale-110 {
+  box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.rounded-full.fixed.bottom-4.right-4.z-\[9999\].bg-white.dark\:bg-gray-800.border-gray-300.dark\:border-gray-600.text-gray-700.dark\:text-gray-200.hover\:bg-gray-50.dark\:hover\:bg-gray-700.shadow-lg.transition-all.duration-200.hover\:scale-110:hover {
+  border-color: hsl(25 95% 53%);
+  transform: scale(1.1);
+}
+
+.text-xs.flex.items-center.gap-1:hover {
+  color: hsl(25 95% 53%);
+  background-color: hsl(25 95% 95%);
+  border-radius: 0.375rem;
+  padding: 0.25rem 0.5rem;
+}
+
+/* Light mode improvements for loading elements */
+.w-16.h-16.border-4.border-orange-200.border-t-orange-500.rounded-full.animate-spin.mx-auto {
+  border-color: hsl(25 95% 53%);
+  border-top-color: hsl(25 95% 70%);
+  box-shadow: 0 0 20px rgba(251, 146, 60, 0.3);
+}
+
+.text-xl.font-semibold.text-gray-800 {
+  color: hsl(240 10% 3.9%);
+}
+
+.text-gray-600.text-sm {
+  color: hsl(240 5% 40%);
+}
+
+.dark .text-black {
+  color: hsl(0 0% 98%);
+}
+
+.dark .hover\:bg-gray-50:hover {
+  background-color: hsl(240 3.7% 15.9%);
+}
+
+.dark .hover\:bg-gray-100:hover {
+  background-color: hsl(240 3.7% 15.9%);
+}
+
+/* Dark mode for select elements */
+.dark select {
+  background-color: hsl(240 10% 3.9%);
+  color: hsl(0 0% 98%);
+  border-color: hsl(240 3.7% 15.9%);
+}
+
+.dark select option {
+  background-color: hsl(240 10% 3.9%);
+  color: hsl(0 0% 98%);
+}
+
+.dark select option:hover {
+  background-color: hsl(240 3.7% 15.9%);
+}
+
+/* Dark mode for specific Open Lovable elements */
+.dark .bg-card {
+  background-color: hsl(240 10% 3.9%);
+}
+
+.dark .border-border {
+  border-color: hsl(240 3.7% 15.9%);
+}
+
+.dark .text-black {
+  color: hsl(0 0% 98%);
+}
+
+.dark .hover\:text-gray-700:hover {
+  color: hsl(0 0% 98%);
+}
+
+/* Dark mode for page background */
+.dark .bg-background {
+  background-color: hsl(240 10% 3.9%);
+}
+
+.dark .text-foreground {
+  color: hsl(0 0% 98%);
+}
+
+/* Dark mode for specific backgrounds */
+.dark .bg-gray-50 {
+  background-color: hsl(240 10% 3.9%);
+}
+
+.dark .bg-gray-100 {
+  background-color: hsl(240 10% 3.9%);
+}
+
+.dark .bg-gray-900 {
+  background-color: hsl(240 10% 3.9%);
+}
+
+
+
 @layer utilities {
   /* Hide scrollbar for Chrome, Safari and Opera */
   .scrollbar-hide::-webkit-scrollbar {
@@ -168,6 +514,17 @@
   body {
     background-color: theme('colors.background');
     color: theme('colors.foreground');
+  }
+  
+  /* Dark mode overrides for common elements */
+  .dark {
+    background-color: theme('colors.background');
+    color: theme('colors.foreground');
+  }
+  
+  /* Ensure dark mode applies to all elements */
+  .dark * {
+    border-color: theme('colors.border');
   }
 }
 

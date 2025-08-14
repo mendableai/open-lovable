@@ -22,6 +22,8 @@ import {
 } from '@/lib/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import CodeApplicationProgress, { type CodeApplicationState } from '@/components/CodeApplicationProgress';
+import { ThemeToggle } from '@/app/components/theme-toggle';
+import { ThemeLogo } from '@/app/components/theme-logo';
 
 interface SandboxData {
   sandboxId: string;
@@ -2739,6 +2741,9 @@ Focus on the key sections and content, making it clean and modern.`;
 
   return (
     <div className="font-sans bg-background text-foreground h-screen flex flex-col">
+      {/* Theme Toggle */}
+      <ThemeToggle />
+      
       {/* Home Screen Overlay */}
       {showHomeScreen && (
         <div className={`fixed inset-0 z-50 transition-opacity duration-500 ${homeScreenFading ? 'opacity-0' : 'opacity-100'}`}>
@@ -2786,11 +2791,7 @@ Focus on the key sections and content, making it clean and modern.`;
           
           {/* Header */}
           <div className="absolute top-0 left-0 right-0 z-20 px-6 py-4 flex items-center justify-between animate-[fadeIn_0.8s_ease-out]">
-            <img
-              src="/firecrawl-logo-with-fire.webp"
-              alt="Firecrawl"
-              className="h-8 w-auto"
-            />
+            <ThemeLogo />
             <a 
               href="https://github.com/mendableai/open-lovable" 
               target="_blank" 
@@ -3003,11 +3004,7 @@ Focus on the key sections and content, making it clean and modern.`;
       
       <div className="bg-card px-4 py-4 border-b border-border flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <img
-            src="/firecrawl-logo-with-fire.webp"
-            alt="Firecrawl"
-            className="h-8 w-auto"
-          />
+          <ThemeLogo />
         </div>
         <div className="flex items-center gap-2">
           {/* Model Selector - Left side */}
