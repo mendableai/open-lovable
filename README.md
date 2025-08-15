@@ -38,3 +38,35 @@ Open [http://localhost:3000](http://localhost:3000)
 ## License
 
 MIT
+## Troubleshooting
+
+### Error: Cannot find module '../lightningcss.win32-x64-msvc.node'
+
+If you see an error like this during build or startup:
+
+```
+Error: Cannot find module '../lightningcss.win32-x64-msvc.node'
+Require stack:
+- .../node_modules/lightningcss/node/index.js
+- .../node_modules/@tailwindcss/node/dist/index.js
+- .../node_modules/@tailwindcss/postcss/dist/index.js
+- .../.next/build/chunks/[turbopack]_runtime.js
+- .../.next/postcss.js
+```
+
+This means the native LightningCSS binary for Windows is missing or not installed correctly. To fix:
+
+1. Delete your `node_modules` and lock file:
+	```powershell
+	Remove-Item -Recurse -Force node_modules
+	Remove-Item -Force pnpm-lock.yaml
+	pnpm install
+	```
+2. If the error persists, clear the pnpm cache:
+	```powershell
+	pnpm store prune
+	pnpm install
+	```
+3. Make sure your Node.js version is compatible with your dependencies.
+
+This issue is common when switching platforms or if the install was interrupted.
