@@ -26,6 +26,7 @@ const googleGenerativeAI = createGoogleGenerativeAI({
 
 const openai = createOpenAI({
   apiKey: process.env.OPENAI_API_KEY,
+  baseURL: process.env.OPENAI_BASE_URL,
 });
 
 // Helper function to analyze user preferences from conversation history
