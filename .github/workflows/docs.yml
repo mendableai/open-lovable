@@ -1,0 +1,58 @@
+name: Generate Documentation
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Generate API documentation
+        run: |
+          echo "# API Documentation" > docs/API.md
+          echo "" >> docs/API.md
+          echo "## Endpoints" >> docs/API.md
+          echo "" >> docs/API.md
+          echo "### /api/sandbox" >> docs/API.md
+          echo "- POST: Create/update sandbox environment" >> docs/API.md
+          echo "" >> docs/API.md
+          echo "### /api/ai-chat" >> docs/API.md
+          echo "- POST: AI chat with OpenAI/Anthropic" >> docs/API.md
+          echo "" >> docs/API.md
+          echo "### /api/generate-code" >> docs/API.md
+          echo "- POST: Generate code with streaming" >> docs/API.md
+          echo "" >> docs/API.md
+          echo "### /api/scrape-url" >> docs/API.md
+          echo "- POST: Web scraping with Puppeteer" >> docs/API.md
+
+      - name: Update README with latest features
+        run: |
+          echo "Last updated: $(date)" > docs/LAST_UPDATE.md
+          echo "Features:" >> docs/LAST_UPDATE.md
+          echo "- Real APIs integration" >> docs/LAST_UPDATE.md
+          echo "- Android Native app" >> docs/LAST_UPDATE.md
+          echo "- Web scraping" >> docs/LAST_UPDATE.md
+          echo "- Code generation" >> docs/LAST_UPDATE.md
+
+      - name: Commit and push documentation
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add docs/
+          git commit -m "Update documentation" || echo "No changes to commit"
+          git push

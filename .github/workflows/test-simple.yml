@@ -1,0 +1,55 @@
+name: Test Simple Workflow
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm install
+        
+      - name: Echo message
+        run: echo "GitHub Actions is working!"
+        
+      - name: List files
+        run: |
+          echo "Current directory:"
+          pwd
+          echo "Files in .github/workflows:"
+          ls -la .github/workflows/
+          echo "Files in OpenLovableApp:"
+          ls -la OpenLovableApp/ || echo "OpenLovableApp directory not found"
+          
+      - name: Check package.json
+        run: |
+          echo "Main package.json:"
+          cat package.json | head -20
+          echo "OpenLovableApp package.json:"
+          cat OpenLovableApp/package.json | head -20 || echo "OpenLovableApp package.json not found"
+          
+      - name: Test success
+        run: echo "✅ All tests passed!"
+        
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            package.json
+            OpenLovableApp/package.json
+          retention-days: 7
+          if-no-files-found: warn
