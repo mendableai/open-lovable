@@ -38,3 +38,16 @@ Open [http://localhost:3000](http://localhost:3000)
 ## License
 
 MIT
+
+## AI Provider configuration
+
+# Default provider (OpenAI)
+AI_PROVIDER=openai
+OPENAI_API_KEY=your_openai_api_key
+OPENAI_MODEL=gpt-4o-mini
+OPENAI_BASE_URL=https://api.openai.com/v1
+
+# Alternative providers (optional)
+ANTHROPIC_API_KEY=your_anthropic_api_key
+GEMINI_API_KEY=your_gemini_api_key
+GROQ_API_KEY=your_groq_api_key
