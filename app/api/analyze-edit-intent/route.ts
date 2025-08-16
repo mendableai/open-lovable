@@ -3,9 +3,38 @@ import { createGroq } from '@ai-sdk/groq';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { createMistral } from '@ai-sdk/mistral';
+import { createOpenRouter } from '@openrouter/ai-sdk-provider';
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { generateObject } from 'ai';
 import { z } from 'zod';
 import type { FileManifest } from '@/types/file-manifest';
+import { appConfig } from '@/config/app.config';
+
+// Helper function to get fallback provider
+function getFallbackProvider() {
+  const fallbackProvider = appConfig.ai.fallbackProvider;
+  
+  switch (fallbackProvider) {
+    case 'anthropic':
+      return anthropic('claude-4-sonnet');
+    case 'openai':
+      return openai('gpt-5');
+    case 'mistral':
+      return mistral('mistral-large-latest');
+    case 'openrouter':
+      return openrouter('qwen/qwen3-coder');
+    case 'openai-compatible':
+      return openaiCompatible('v0-1.5-md');
+    case 'google':
+      return createGoogleGenerativeAI({
+        apiKey: process.env.GEMINI_API_KEY,
+      })('gemini-2.5-pro');
+    case 'groq':
+    default:
+      return groq('moonshotai/kimi-k2-instruct');
+  }
+}
 
 const groq = createGroq({
   apiKey: process.env.GROQ_API_KEY,
@@ -19,6 +48,21 @@ const anthropic = createAnthropic({
 const openai = createOpenAI({
   apiKey: process.env.OPENAI_API_KEY,
   baseURL: process.env.OPENAI_BASE_URL,
+});
+
+const mistral = createMistral({
+  apiKey: process.env.MISTRAL_API_KEY,
+});
+
+const openrouter = createOpenRouter({
+  apiKey: process.env.OPENROUTER_API_KEY,
+});
+
+const openaiCompatible = createOpenAICompatible({
+  name: 'openai-compatible',
+  apiKey: process.env.OPENAI_COMPATIBLE_API_KEY,
+  baseURL: process.env.OPENAI_COMPATIBLE_BASE_URL || 'https://api.openai.com/v1',
+  headers: process.env.OPENAI_COMPATIBLE_HEADERS ? JSON.parse(process.env.OPENAI_COMPATIBLE_HEADERS) : undefined,
 });
 
 // Schema for the AI's search plan - not file selection!
@@ -104,10 +148,24 @@ export async function POST(request: NextRequest) {
         aiModel = openai(model.replace('openai/', ''));
       }
     } else if (model.startsWith('google/')) {
-      aiModel = createGoogleGenerativeAI(model.replace('google/', ''));
+      aiModel = createGoogleGenerativeAI({
+        apiKey: process.env.GEMINI_API_KEY,
+      })(model.replace('google/', ''));
+    } else if (model.startsWith('mistral/')) {
+      aiModel = mistral(model.replace('mistral/', ''));
+    } else if (model.startsWith('openrouter/')) {
+      aiModel = openrouter(model.replace('openrouter/', ''));
+    } else if (model.startsWith('openai-compatible/')) {
+      aiModel = openaiCompatible(model.replace('openai-compatible/', ''));
+    } else if (model.startsWith('moonshotai/')) {
+      // Handle Moonshot AI via OpenRouter
+      aiModel = openrouter(model);
+    } else if (model.startsWith('groq/')) {
+      aiModel = groq(model.replace('groq/', ''));
     } else {
-      // Default to groq if model format is unclear
-      aiModel = groq(model);
+      // Use configured fallback provider instead of hardcoded groq
+      console.log('[analyze-edit-intent] Using fallback provider:', appConfig.ai.fallbackProvider);
+      aiModel = getFallbackProvider();
     }
     
     console.log('[analyze-edit-intent] Using AI model:', model);

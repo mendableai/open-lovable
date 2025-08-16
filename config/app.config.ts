@@ -34,8 +34,12 @@ export const appConfig = {
     availableModels: [
       'openai/gpt-5',
       'moonshotai/kimi-k2-instruct',
-      'anthropic/claude-sonnet-4-20250514',
-      'google/gemini-2.5-pro'
+      'anthropic/claude-sonnet-4',
+      'google/gemini-2.5-pro',
+      'mistral/mistral-large-latest',
+      'openrouter/qwen/qwen3-coder',
+      'openai-compatible/v0-1.5-md',
+      'groq/moonshotai/kimi-k2-instruct',
     ],
     
     // Model display names
@@ -43,11 +47,18 @@ export const appConfig = {
       'openai/gpt-5': 'GPT-5',
       'moonshotai/kimi-k2-instruct': 'Kimi K2 Instruct',
       'anthropic/claude-sonnet-4-20250514': 'Sonnet 4',
-      'google/gemini-2.5-pro': 'Gemini 2.5 Pro'
+      'google/gemini-2.5-pro': 'Gemini 2.5 Pro',
+      'mistral/mistral-large-latest': 'Mistral Large',
+      'openrouter/qwen/qwen3-coder': 'Qwen 3 Coder',
+      'openai-compatible/v0-1.5-md': 'v0 1.5 Medium',
+      'groq/moonshotai/kimi-k2-instruct': 'Kimi K2 Instruct'
     },
     
     // Temperature settings for non-reasoning models
     defaultTemperature: 0.7,
+    
+    // Fallback provider configuration
+    fallbackProvider: process.env.AI_FALLBACK_PROVIDER || 'openrouter',
     
     // Max tokens for code generation
     maxTokens: 8000,

@@ -3,6 +3,9 @@ import { createGroq } from '@ai-sdk/groq';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { createMistral } from '@ai-sdk/mistral';
+import { createOpenRouter } from '@openrouter/ai-sdk-provider';
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { streamText } from 'ai';
 import type { SandboxState } from '@/types/sandbox';
 import { selectFilesForEdit, getFileContents, formatFilesForAI } from '@/lib/context-selector';
@@ -10,6 +13,31 @@ import { executeSearchPlan, formatSearchResultsForAI, selectTargetFile } from '@
 import { FileManifest } from '@/types/file-manifest';
 import type { ConversationState, ConversationMessage, ConversationEdit } from '@/types/conversation';
 import { appConfig } from '@/config/app.config';
+
+// Helper function to get fallback provider
+function getFallbackProvider() {
+  const fallbackProvider = appConfig.ai.fallbackProvider;
+  
+  switch (fallbackProvider) {
+    case 'anthropic':
+      return anthropic('claude-4-sonnet');
+    case 'openai':
+      return openai('gpt-5');
+    case 'mistral':
+      return mistral('mistral-large-latest');
+    case 'openrouter':
+      return openrouter('qwen/qwen3-coder');
+    case 'openai-compatible':
+      return openaiCompatible('v0-1.5-md');
+    case 'google':
+      return createGoogleGenerativeAI({
+        apiKey: process.env.GEMINI_API_KEY,
+      })('gemini-2.5-pro');
+    case 'groq':
+    default:
+      return groq('moonshotai/kimi-k2-instruct');
+  }
+}
 
 const groq = createGroq({
   apiKey: process.env.GROQ_API_KEY,
@@ -26,6 +54,21 @@ const googleGenerativeAI = createGoogleGenerativeAI({
 
 const openai = createOpenAI({
   apiKey: process.env.OPENAI_API_KEY,
+});
+
+const mistral = createMistral({
+  apiKey: process.env.MISTRAL_API_KEY,
+});
+
+const openrouter = createOpenRouter({
+  apiKey: process.env.OPENROUTER_API_KEY,
+});
+
+const openaiCompatible = createOpenAICompatible({
+  name: 'openai-compatible',
+  apiKey: process.env.OPENAI_COMPATIBLE_API_KEY,
+  baseURL: process.env.OPENAI_COMPATIBLE_BASE_URL || 'https://api.openai.com/v1',
+  headers: process.env.OPENAI_COMPATIBLE_HEADERS ? JSON.parse(process.env.OPENAI_COMPATIBLE_HEADERS) : undefined,
 });
 
 // Helper function to analyze user preferences from conversation history
@@ -1155,14 +1198,45 @@ CRITICAL: When files are provided in the context:
         const isAnthropic = model.startsWith('anthropic/');
         const isGoogle = model.startsWith('google/');
         const isOpenAI = model.startsWith('openai/gpt-5');
-        const modelProvider = isAnthropic ? anthropic : (isOpenAI ? openai : (isGoogle ? googleGenerativeAI : groq));
-        const actualModel = isAnthropic ? model.replace('anthropic/', '') : 
-                           (model === 'openai/gpt-5') ? 'gpt-5' :
-                           (isGoogle ? model.replace('google/', '') : model);
+        const isMistral = model.startsWith('mistral/');
+        const isOpenRouter = model.startsWith('openrouter/') || model.startsWith('moonshotai/');
+        const isOpenAICompatible = model.startsWith('openai-compatible/');
+        const isGroq = model.startsWith('groq/') || model.includes('gpt-oss');
+        
+        let modelProvider;
+        let actualModel;
+        
+        if (isAnthropic) {
+          modelProvider = anthropic;
+          actualModel = model.replace('anthropic/', '');
+        } else if (isOpenAI) {
+          modelProvider = openai;
+          actualModel = 'gpt-5';
+        } else if (isGoogle) {
+          modelProvider = googleGenerativeAI;
+          actualModel = model.replace('google/', '');
+        } else if (isMistral) {
+          modelProvider = mistral;
+          actualModel = model.replace('mistral/', '');
+        } else if (isOpenRouter) {
+          modelProvider = openrouter;
+          actualModel = model.startsWith('openrouter/') ? model.replace('openrouter/', '') : model;
+        } else if (isOpenAICompatible) {
+          modelProvider = openaiCompatible;
+          actualModel = model.replace('openai-compatible/', '');
+        } else if (isGroq) {
+          modelProvider = groq;
+          actualModel = model;
+        } else {
+          // Use configured fallback provider
+          console.log('[generate-ai-code-stream] Using fallback provider:', appConfig.ai.fallbackProvider);
+          modelProvider = getFallbackProvider();
+          actualModel = model;
+        }
 
         // Make streaming API call with appropriate provider
         const streamOptions: any = {
-          model: modelProvider(actualModel),
+          model: typeof modelProvider === 'function' ? modelProvider(actualModel) : modelProvider,
           messages: [
             { 
               role: 'system', 
@@ -1588,14 +1662,26 @@ Provide the complete file content without any truncation. Include all necessary 
                 let completionClient;
                 if (model.includes('gpt') || model.includes('openai')) {
                   completionClient = openai;
-                } else if (model.includes('claude')) {
+                } else if (model.includes('claude') || model.startsWith('anthropic/')) {
                   completionClient = anthropic;
-                } else {
+                } else if (model.startsWith('mistral/')) {
+                  completionClient = mistral;
+                } else if (model.startsWith('openrouter/') || model.startsWith('moonshotai/')) {
+                  completionClient = openrouter;
+                } else if (model.startsWith('openai-compatible/')) {
+                  completionClient = openaiCompatible;
+                } else if (model.startsWith('google/')) {
+                  completionClient = googleGenerativeAI;
+                } else if (model.startsWith('groq/')) {
                   completionClient = groq;
+                } else {
+                  // Use configured fallback provider
+                  console.log('[generate-ai-code-stream] Using fallback provider for completion:', appConfig.ai.fallbackProvider);
+                  completionClient = getFallbackProvider();
                 }
-                
+
                 const completionResult = await streamText({
-                  model: completionClient(modelMapping[model] || model),
+                  model: typeof completionClient === 'function' ? completionClient(model.replace(/^[^/]+\//, '')) : completionClient,
                   messages: [
                     { 
                       role: 'system', 
@@ -1603,8 +1689,7 @@ Provide the complete file content without any truncation. Include all necessary 
                     },
                     { role: 'user', content: completionPrompt }
                   ],
-                  temperature: isGPT5 ? undefined : appConfig.ai.defaultTemperature,
-                  maxTokens: appConfig.ai.truncationRecoveryMaxTokens
+                  temperature: model.startsWith('openai/gpt-5') ? undefined : appConfig.ai.defaultTemperature
                 });
                 
                 // Get the full text from the stream
