@@ -1,7 +1,11 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { supabase } from "@/lib/supabase/client";
+import { AuthChangeEvent, Session } from '@supabase/supabase-js'
 import { useSearchParams, useRouter } from 'next/navigation';
+import { getSubscription } from "@/lib/supabase/subscriptions";
+import { getConversation } from "@/lib/supabase/conversations";
 import { appConfig } from '@/config/app.config';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -22,6 +26,9 @@ import {
 } from '@/lib/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import CodeApplicationProgress, { type CodeApplicationState } from '@/components/CodeApplicationProgress';
+import SubscriptionPlans from '@/components/SubscriptionPlans';
+import ImportFromGithubModal from '@/components/ImportFromGithubModal';
+import ExportToGithubModal from '@/components/ExportToGithubModal';
 
 interface SandboxData {
   sandboxId: string;
@@ -43,19 +50,21 @@ interface ChatMessage {
 }
 
 export default function AISandboxPage() {
+  const [subscription, setSubscription] = useState<any | null>(null);
+  const [dailyMessageCount, setDailyMessageCount] = useState(0);
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [showGithubModal, setShowGithubModal] = useState(false);
+  const [githubRepos, setGithubRepos] = useState<any[]>([]);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [repoName, setRepoName] = useState("");
+  const [session, setSession] = useState<Session | null>(null);
   const [sandboxData, setSandboxData] = useState<SandboxData | null>(null);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState({ text: 'Not connected', active: false });
   const [responseArea, setResponseArea] = useState<string[]>([]);
   const [structureContent, setStructureContent] = useState('No sandbox created yet');
   const [promptInput, setPromptInput] = useState('');
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    {
-      content: 'Welcome! I can help you generate code with full context of your sandbox files and structure. Just start chatting - I\'ll automatically create a sandbox for you if needed!\n\nTip: If you see package errors like "react-router-dom not found", just type "npm install" or "check packages" to automatically install missing packages.',
-      type: 'system',
-      timestamp: new Date()
-    }
-  ]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [aiChatInput, setAiChatInput] = useState('');
   const [aiEnabled] = useState(true);
   const searchParams = useSearchParams();
@@ -134,60 +143,38 @@ export default function AISandboxPage() {
     lastProcessedPosition: 0
   });
 
-  // Clear old conversation data on component mount and create/restore sandbox
   useEffect(() => {
-    let isMounted = true;
-
-    const initializePage = async () => {
-      // Clear old conversation
-      try {
-        await fetch('/api/conversation-state', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'clear-old' })
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session)
+      if (session?.user) {
+        getSubscription(session.user.id).then(setSubscription);
+        getConversation(session.user.id).then((conversation) => {
+          if (conversation) {
+            setChatMessages(conversation.messages);
+          }
         });
-        console.log('[home] Cleared old conversation data on mount');
-      } catch (error) {
-        console.error('[ai-sandbox] Failed to clear old conversation:', error);
-        if (isMounted) {
-          addChatMessage('Failed to clear old conversation data.', 'error');
-        }
       }
-      
-      if (!isMounted) return;
+    })
 
-      // Check if sandbox ID is in URL
-      const sandboxIdParam = searchParams.get('sandbox');
-      
-      setLoading(true);
-      try {
-        if (sandboxIdParam) {
-          console.log('[home] Attempting to restore sandbox:', sandboxIdParam);
-          // For now, just create a new sandbox - you could enhance this to actually restore
-          // the specific sandbox if your backend supports it
-          await createSandbox(true);
-        } else {
-          console.log('[home] No sandbox in URL, creating new sandbox automatically...');
-          await createSandbox(true);
-        }
-      } catch (error) {
-        console.error('[ai-sandbox] Failed to create or restore sandbox:', error);
-        if (isMounted) {
-          addChatMessage('Failed to create or restore sandbox.', 'error');
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+      if (session?.user) {
+        getSubscription(session.user.id).then(setSubscription);
+        getConversation(session.user.id).then((conversation) => {
+          if (conversation) {
+            setChatMessages(conversation.messages);
+          }
+        });
+      } else {
+        setSubscription(null);
+        setChatMessages([]);
       }
-    };
-    
-    initializePage();
+    })
 
-    return () => {
-      isMounted = false;
-    };
-  }, []); // Run only on mount
+    return () => subscription.unsubscribe()
+  }, [])
   
   useEffect(() => {
     // Handle Escape key for home screen
@@ -234,6 +221,49 @@ export default function AISandboxPage() {
     if (chatMessagesRef.current) {
       chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight;
     }
+  }, [chatMessages]);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session)
+      if (session?.user) {
+        getSubscription(session.user.id).then(setSubscription);
+        getConversation(session.user.id).then((conversation) => {
+          if (conversation) {
+            setChatMessages(conversation.messages);
+          }
+        });
+      }
+    })
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+      if (session?.user) {
+        getSubscription(session.user.id).then(setSubscription);
+        getConversation(session.user.id).then((conversation) => {
+          if (conversation) {
+            setChatMessages(conversation.messages);
+          }
+        });
+      } else {
+        setSubscription(null);
+        setChatMessages([]);
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  useEffect(() => {
+    const today = new Date().toLocaleDateString();
+    const userMessagesToday = chatMessages.filter(
+      (msg) =>
+        msg.type === "user" &&
+        new Date(msg.timestamp).toLocaleDateString() === today
+    ).length;
+    setDailyMessageCount(userMessagesToday);
   }, [chatMessages]);
 
 
@@ -1407,7 +1437,7 @@ Tip: I automatically detect and install npm packages from your code imports (lik
               ref={iframeRef}
               src={sandboxData.url}
               className="w-full h-full border-none"
-              title="Open Lovable Sandbox"
+              title="Sokarr.ai Sandbox"
               allow="clipboard-write"
               sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
             />
@@ -2808,8 +2838,8 @@ Focus on the key sections and content, making it clean and modern.`;
               {/* Firecrawl-style Header */}
               <div className="text-center">
                 <h1 className="text-[2.5rem] lg:text-[3.8rem] text-center text-[#36322F] font-semibold tracking-tight leading-[0.9] animate-[fadeIn_0.8s_ease-out]">
-                  <span className="hidden md:inline">Open Lovable</span>
-                  <span className="md:hidden">Open Lovable</span>
+                  <span className="hidden md:inline">Sokarr.ai</span>
+                  <span className="md:hidden">Sokarr.ai</span>
                 </h1>
                 <motion.p 
                   className="text-base lg:text-lg max-w-lg mx-auto mt-2.5 text-zinc-500 text-center text-balance"
@@ -3063,6 +3093,20 @@ Focus on the key sections and content, making it clean and modern.`;
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
             </svg>
           </Button>
+          {session ? (
+            <>
+              <Button variant="code" onClick={() => setShowSubscriptionModal(true)} size="sm">Upgrade</Button>
+              <Button variant="code" onClick={() => setShowGithubModal(true)} size="sm">Import from GitHub</Button>
+              <Button variant="code" onClick={() => setShowExportModal(true)} size="sm">Export to GitHub</Button>
+              {session.user?.user_metadata.avatar_url && <img src={session.user.user_metadata.avatar_url} alt="user profile" className="w-8 h-8 rounded-full" />}
+              <Button variant="code" onClick={() => supabase.auth.signOut()} size="sm">Logout</Button>
+            </>
+          ) : (
+            <>
+              <Button variant="code" onClick={() => supabase.auth.signInWithOAuth({ provider: "google" })} size="sm">Login with Google</Button>
+              <Button variant="code" onClick={() => supabase.auth.signInWithOAuth({ provider: "github", options: { scopes: "repo" } })} size="sm">Login with GitHub</Button>
+            </>
+          )}
           <div className="inline-flex items-center gap-2 bg-[#36322F] text-white px-3 py-1.5 rounded-[10px] text-sm font-medium [box-shadow:inset_0px_-2px_0px_0px_#171310,_0px_1px_6px_0px_rgba(58,_33,_8,_58%)]">
             <span id="status-text">{status.text}</span>
             <div className={`w-2 h-2 rounded-full ${status.active ? 'bg-green-500' : 'bg-gray-500'}`} />
@@ -3326,6 +3370,7 @@ Focus on the key sections and content, making it clean and modern.`;
                 onClick={sendChatMessage}
                 className="absolute right-2 bottom-2 p-2 bg-[#36322F] text-white rounded-[10px] hover:bg-[#4a4542] [box-shadow:inset_0px_-2px_0px_0px_#171310,_0px_1px_6px_0px_rgba(58,_33,_8,_58%)] hover:translate-y-[1px] hover:scale-[0.98] hover:[box-shadow:inset_0px_-1px_0px_0px_#171310,_0px_1px_3px_0px_rgba(58,_33,_8,_40%)] active:translate-y-[2px] active:scale-[0.97] active:[box-shadow:inset_0px_1px_1px_0px_#171310,_0px_1px_2px_0px_rgba(58,_33,_8,_30%)] transition-all duration-200"
                 title="Send message (Enter)"
+                disabled={!subscription && dailyMessageCount >= 10}
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
@@ -3424,6 +3469,68 @@ Focus on the key sections and content, making it clean and modern.`;
 
 
 
+      {showSubscriptionModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg p-8">
+            <SubscriptionPlans />
+            <Button onClick={() => setShowSubscriptionModal(false)} className="mt-4">Close</Button>
+          </div>
+        </div>
+      )}
+
+      {showGithubModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <ImportFromGithubModal
+            onClose={() => setShowGithubModal(false)}
+            onImport={async (repo) => {
+              setShowGithubModal(false);
+              setLoading(true);
+              try {
+                const response = await fetch("/api/github/repo-contents", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ owner: repo.owner.login, repo: repo.name }),
+                });
+                const files = await response.json();
+
+                await fetch("/api/create-ai-sandbox", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ files }),
+                });
+              } catch (error) {
+                console.error(error);
+              } finally {
+                setLoading(false);
+              }
+            }}
+          />
+        </div>
+      )}
+
+      {showExportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <ExportToGithubModal
+            onClose={() => setShowExportModal(false)}
+            onExport={async (repoName) => {
+              setShowExportModal(false);
+              setLoading(true);
+              try {
+                const files = Object.entries(sandboxFiles).map(([path, content]) => ({ path, content }));
+                await fetch("/api/github/export", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ repoName, files }),
+                });
+              } catch (error) {
+                console.error(error);
+              } finally {
+                setLoading(false);
+              }
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }

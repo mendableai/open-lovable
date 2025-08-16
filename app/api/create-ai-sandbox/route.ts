@@ -11,7 +11,8 @@ declare global {
   var sandboxState: SandboxState;
 }
 
-export async function POST() {
+export async function POST(request: Request) {
+  const { files } = await request.json();
   let sandbox: any = null;
 
   try {
@@ -48,13 +49,36 @@ export async function POST() {
     console.log(`[create-ai-sandbox] Sandbox created: ${sandboxId}`);
     console.log(`[create-ai-sandbox] Sandbox host: ${host}`);
 
-    // Set up a basic Vite React app using Python to write files
-    console.log('[create-ai-sandbox] Setting up Vite React app...');
-    
-    // Write all files in a single Python script to avoid multiple executions
-    const setupScript = `
+    if (files) {
+      // Write the imported files to the sandbox
+      const setupScript = `
 import os
 import json
+
+print('Writing imported files to sandbox...')
+
+${files.map((file: any) => `
+os.makedirs(os.path.dirname('/home/user/app${file.path}'), exist_ok=True)
+with open('/home/user/app${file.path}', 'w') as f:
+    f.write("""${file.content}""")
+print('✓ ${file.path}')
+`).join('\n')}
+
+print('\\nAll files created successfully!')
+`;
+      await sandbox.runCode(setupScript);
+    } else {
+      // Set up a basic Vite React app using Python to write files
+      console.log('[create-ai-sandbox] Setting up Vite React app...');
+
+      // Write all files in a single Python script to avoid multiple executions
+      const setupScript = `
+import os
+import json
+
+print('Installing PHP...')
+os.system('sudo apt-get update && sudo apt-get install -y php')
+print('✓ PHP installed')
 
 print('Setting up React app with Vite and Tailwind...')
 
@@ -225,8 +249,9 @@ print('✓ src/index.css')
 print('\\nAll files created successfully!')
 `;
 
-    // Execute the setup script
-    await sandbox.runCode(setupScript);
+      // Execute the setup script
+      await sandbox.runCode(setupScript);
+    }
     
     // Install dependencies
     console.log('[create-ai-sandbox] Installing dependencies...');

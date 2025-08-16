@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
 import { createGroq } from '@ai-sdk/groq';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createOpenAI } from '@ai-sdk/openai';
@@ -83,21 +85,37 @@ export async function POST(request: NextRequest) {
     console.log('[generate-ai-code-stream] - context.currentFiles:', context?.currentFiles ? Object.keys(context.currentFiles) : 'none');
     console.log('[generate-ai-code-stream] - currentFiles count:', context?.currentFiles ? Object.keys(context.currentFiles).length : 0);
     
-    // Initialize conversation state if not exists
-    if (!global.conversationState) {
-      global.conversationState = {
-        conversationId: `conv-${Date.now()}`,
-        startedAt: Date.now(),
-        lastUpdated: Date.now(),
-        context: {
-          messages: [],
-          edits: [],
-          projectEvolution: { majorChanges: [] },
-          userPreferences: {}
-        }
-      };
+    const cookieStore = cookies();
+    const supabase = createClient(cookieStore);
+
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Fetch conversation history from the database
+    let { data: conversation, error } = await supabase
+      .from('conversations')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+
+    if (error || !conversation) {
+      // Create a new conversation if one doesn't exist
+      const { data: newConversation, error: newConversationError } = await supabase
+        .from('conversations')
+        .insert({ user_id: user.id, messages: [] })
+        .select()
+        .single();
+
+      if (newConversationError) {
+        throw newConversationError;
+      }
+      conversation = newConversation;
     }
     
+    const messages = conversation.messages || [];
     // Add user message to conversation history
     const userMessage: ConversationMessage = {
       id: `msg-${Date.now()}`,
@@ -108,19 +126,7 @@ export async function POST(request: NextRequest) {
         sandboxId: context?.sandboxId
       }
     };
-    global.conversationState.context.messages.push(userMessage);
-    
-    // Clean up old messages to prevent unbounded growth
-    if (global.conversationState.context.messages.length > 20) {
-      // Keep only the last 15 messages
-      global.conversationState.context.messages = global.conversationState.context.messages.slice(-15);
-      console.log('[generate-ai-code-stream] Trimmed conversation history to prevent context overflow');
-    }
-    
-    // Clean up old edits
-    if (global.conversationState.context.edits.length > 10) {
-      global.conversationState.context.edits = global.conversationState.context.edits.slice(-8);
-    }
+    messages.push(userMessage);
     
     // Debug: Show a sample of actual file content
     if (context?.currentFiles && Object.keys(context.currentFiles).length > 0) {
@@ -481,43 +487,14 @@ Remember: You are a SURGEON making a precise incision, not an artist repainting 
         
         // Build conversation context for system prompt
         let conversationContext = '';
-        if (global.conversationState && global.conversationState.context.messages.length > 1) {
+        if (messages.length > 1) {
           console.log('[generate-ai-code-stream] Building conversation context');
-          console.log('[generate-ai-code-stream] Total messages:', global.conversationState.context.messages.length);
-          console.log('[generate-ai-code-stream] Total edits:', global.conversationState.context.edits.length);
+          console.log('[generate-ai-code-stream] Total messages:', messages.length);
           
           conversationContext = `\n\n## Conversation History (Recent)\n`;
           
-          // Include only the last 3 edits to save context
-          const recentEdits = global.conversationState.context.edits.slice(-3);
-          if (recentEdits.length > 0) {
-            console.log('[generate-ai-code-stream] Including', recentEdits.length, 'recent edits in context');
-            conversationContext += `\n### Recent Edits:\n`;
-            recentEdits.forEach(edit => {
-              conversationContext += `- "${edit.userRequest}" → ${edit.editType} (${edit.targetFiles.map(f => f.split('/').pop()).join(', ')})\n`;
-            });
-          }
-          
-          // Include recently created files - CRITICAL for preventing duplicates
-          const recentMsgs = global.conversationState.context.messages.slice(-5);
-          const recentlyCreatedFiles: string[] = [];
-          recentMsgs.forEach(msg => {
-            if (msg.metadata?.editedFiles) {
-              recentlyCreatedFiles.push(...msg.metadata.editedFiles);
-            }
-          });
-          
-          if (recentlyCreatedFiles.length > 0) {
-            const uniqueFiles = [...new Set(recentlyCreatedFiles)];
-            conversationContext += `\n### 🚨 RECENTLY CREATED/EDITED FILES (DO NOT RECREATE THESE):\n`;
-            uniqueFiles.forEach(file => {
-              conversationContext += `- ${file}\n`;
-            });
-            conversationContext += `\nIf the user mentions any of these components, UPDATE the existing file!\n`;
-          }
-          
           // Include only last 5 messages for context (reduced from 10)
-          const recentMessages = recentMsgs;
+          const recentMessages = messages.slice(-5);
           if (recentMessages.length > 2) { // More than just current message
             conversationContext += `\n### Recent Messages:\n`;
             recentMessages.slice(0, -1).forEach(msg => { // Exclude current message
@@ -528,17 +505,8 @@ Remember: You are a SURGEON making a precise incision, not an artist repainting 
             });
           }
           
-          // Include only last 2 major changes
-          const majorChanges = global.conversationState.context.projectEvolution.majorChanges.slice(-2);
-          if (majorChanges.length > 0) {
-            conversationContext += `\n### Recent Changes:\n`;
-            majorChanges.forEach(change => {
-              conversationContext += `- ${change.description}\n`;
-            });
-          }
-          
           // Keep user preferences - they're concise
-          const userPrefs = analyzeUserPreferences(global.conversationState.context.messages);
+          const userPrefs = analyzeUserPreferences(messages);
           if (userPrefs.commonPatterns.length > 0) {
             conversationContext += `\n### User Preferences:\n`;
             conversationContext += `- Edit style: ${userPrefs.preferredEditStyle}\n`;
@@ -1202,26 +1170,7 @@ Examples of CORRECT CODE (ALWAYS DO THIS):
 
 REMEMBER: It's better to generate fewer COMPLETE files than many INCOMPLETE files.`
             },
-            { 
-              role: 'user', 
-              content: fullPrompt + `
-
-CRITICAL: You MUST complete EVERY file you start. If you write:
-<file path="src/components/Hero.jsx">
-
-You MUST include the closing </file> tag and ALL the code in between.
-
-NEVER write partial code like:
-<h1>Build and deploy on the AI Cloud.</h1>
-<p>Some text...</p>  ❌ WRONG
-
-ALWAYS write complete code:
-<h1>Build and deploy on the AI Cloud.</h1>
-<p>Some text here with full content</p>  ✅ CORRECT
-
-If you're running out of space, generate FEWER files but make them COMPLETE.
-It's better to have 3 complete files than 10 incomplete files.`
-            }
+            ...messages.map(m => ({ role: m.role, content: m.content })),
           ],
           maxTokens: 8192, // Reduce to ensure completion
           stopSequences: [] // Don't stop early
@@ -1364,6 +1313,19 @@ It's better to have 3 complete files than 10 incomplete files.`
         
         console.log('\n\n[generate-ai-code-stream] Streaming complete.');
         
+        const aiMessage: ConversationMessage = {
+            id: `msg-${Date.now()}`,
+            role: 'ai',
+            content: generatedCode,
+            timestamp: Date.now(),
+        };
+        messages.push(aiMessage);
+
+        await supabase
+            .from('conversations')
+            .update({ messages })
+            .eq('id', conversation.id);
+
         // Send any remaining conversational text
         if (conversationalBuffer.trim()) {
           await sendProgress({ 
