@@ -170,7 +170,11 @@ export async function POST(request: NextRequest) {
           if (manifest) {
             await sendProgress({ type: 'status', message: '🔍 Creating search plan...' });
             
-            const fileContents = global.sandboxState.fileCache.files;
+            // Safely access file cache (fixes: 'global.sandboxState.fileCache' is possibly 'null')
+            const fileContents = global.sandboxState?.fileCache?.files ?? {};
+            if (Object.keys(fileContents).length === 0) {
+              console.warn('[generate-ai-code-stream] No file contents available in cache');
+            }
             console.log('[generate-ai-code-stream] Files available for search:', Object.keys(fileContents).length);
             
             // STEP 1: Get search plan from AI

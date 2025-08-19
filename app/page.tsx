@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { appConfig } from '@/config/app.config';
 import { Button } from '@/components/ui/button';
@@ -43,6 +43,15 @@ interface ChatMessage {
 }
 
 export default function AISandboxPage() {
+  return (
+    <Suspense fallback={<div className="h-screen flex items-center justify-center text-sm text-gray-500">Loading...</div>}>
+      <AISandboxContent />
+    </Suspense>
+  );
+}
+
+// Renamed original component to be wrapped by Suspense
+function AISandboxContent() {
   const [sandboxData, setSandboxData] = useState<SandboxData | null>(null);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState({ text: 'Not connected', active: false });
