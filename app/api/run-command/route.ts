@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Sandbox } from '@e2b/code-interpreter';
+// import { Sandbox } from '@e2b/code-interpreter';
+
+export const runtime = 'edge';
 
 // Get active sandbox from global state (in production, use a proper state management solution)
 declare global {
@@ -17,7 +19,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
     
-    if (!global.activeSandbox) {
+    if (!globalThis.activeSandbox) {
       return NextResponse.json({ 
         success: false, 
         error: 'No active sandbox' 
@@ -26,7 +28,7 @@ export async function POST(request: NextRequest) {
     
     console.log(`[run-command] Executing: ${command}`);
     
-    const result = await global.activeSandbox.runCode(`
+    const result = await globalThis.activeSandbox.runCode(`
 import subprocess
 import os
 

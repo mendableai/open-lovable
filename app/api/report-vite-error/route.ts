@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+export const runtime = 'edge';
+
 declare global {
   var viteErrors: any[];
 }
 
 // Initialize global viteErrors array if it doesn't exist
-if (!global.viteErrors) {
-  global.viteErrors = [];
+if (!globalThis.viteErrors) {
+  globalThis.viteErrors = [];
 }
 
 export async function POST(request: NextRequest) {
@@ -37,11 +39,11 @@ export async function POST(request: NextRequest) {
     }
     
     // Add to global errors array
-    global.viteErrors.push(errorObj);
+    globalThis.viteErrors.push(errorObj);
     
     // Keep only last 50 errors
-    if (global.viteErrors.length > 50) {
-      global.viteErrors = global.viteErrors.slice(-50);
+    if (globalThis.viteErrors.length > 50) {
+      globalThis.viteErrors = globalThis.viteErrors.slice(-50);
     }
     
     console.log('[report-vite-error] Error reported:', errorObj);

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { ConversationState } from '@/types/conversation';
 
+export const runtime = 'edge';
+
 declare global {
   var conversationState: ConversationState | null;
 }
@@ -8,7 +10,7 @@ declare global {
 // GET: Retrieve current conversation state
 export async function GET() {
   try {
-    if (!global.conversationState) {
+    if (!globalThis.conversationState) {
       return NextResponse.json({
         success: true,
         state: null,
@@ -18,7 +20,7 @@ export async function GET() {
     
     return NextResponse.json({
       success: true,
-      state: global.conversationState
+      state: globalThis.conversationState
     });
   } catch (error) {
     console.error('[conversation-state] Error getting state:', error);
@@ -36,7 +38,7 @@ export async function POST(request: NextRequest) {
     
     switch (action) {
       case 'reset':
-        global.conversationState = {
+        globalThis.conversationState = {
           conversationId: `conv-${Date.now()}`,
           startedAt: Date.now(),
           lastUpdated: Date.now(),
@@ -46,19 +48,19 @@ export async function POST(request: NextRequest) {
             projectEvolution: { majorChanges: [] },
             userPreferences: {}
           }
-        };
+        } as ConversationState;
         
         console.log('[conversation-state] Reset conversation state');
         
         return NextResponse.json({
           success: true,
           message: 'Conversation state reset',
-          state: global.conversationState
+          state: globalThis.conversationState
         });
         
       case 'clear-old':
         // Clear old conversation data but keep recent context
-        if (!global.conversationState) {
+        if (!globalThis.conversationState) {
           return NextResponse.json({
             success: false,
             error: 'No active conversation to clear'
@@ -66,21 +68,21 @@ export async function POST(request: NextRequest) {
         }
         
         // Keep only recent data
-        global.conversationState.context.messages = global.conversationState.context.messages.slice(-5);
-        global.conversationState.context.edits = global.conversationState.context.edits.slice(-3);
-        global.conversationState.context.projectEvolution.majorChanges = 
-          global.conversationState.context.projectEvolution.majorChanges.slice(-2);
+        globalThis.conversationState.context.messages = globalThis.conversationState.context.messages.slice(-5);
+        globalThis.conversationState.context.edits = globalThis.conversationState.context.edits.slice(-3);
+        globalThis.conversationState.context.projectEvolution.majorChanges = 
+          globalThis.conversationState.context.projectEvolution.majorChanges.slice(-2);
         
         console.log('[conversation-state] Cleared old conversation data');
         
         return NextResponse.json({
           success: true,
           message: 'Old conversation data cleared',
-          state: global.conversationState
+          state: globalThis.conversationState
         });
         
       case 'update':
-        if (!global.conversationState) {
+        if (!globalThis.conversationState) {
           return NextResponse.json({
             success: false,
             error: 'No active conversation to update'
@@ -90,22 +92,22 @@ export async function POST(request: NextRequest) {
         // Update specific fields if provided
         if (data) {
           if (data.currentTopic) {
-            global.conversationState.context.currentTopic = data.currentTopic;
+            globalThis.conversationState.context.currentTopic = data.currentTopic;
           }
           if (data.userPreferences) {
-            global.conversationState.context.userPreferences = {
-              ...global.conversationState.context.userPreferences,
+            globalThis.conversationState.context.userPreferences = {
+              ...globalThis.conversationState.context.userPreferences,
               ...data.userPreferences
             };
           }
           
-          global.conversationState.lastUpdated = Date.now();
+          globalThis.conversationState.lastUpdated = Date.now();
         }
         
         return NextResponse.json({
           success: true,
           message: 'Conversation state updated',
-          state: global.conversationState
+          state: globalThis.conversationState
         });
         
       default:
@@ -126,7 +128,7 @@ export async function POST(request: NextRequest) {
 // DELETE: Clear conversation state
 export async function DELETE() {
   try {
-    global.conversationState = null;
+    globalThis.conversationState = null;
     
     console.log('[conversation-state] Cleared conversation state');
     

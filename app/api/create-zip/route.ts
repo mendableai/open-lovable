@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+export const runtime = 'edge';
+
 declare global {
   var activeSandbox: any;
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(_: NextRequest) {
   try {
-    if (!global.activeSandbox) {
+    if (!globalThis.activeSandbox) {
       return NextResponse.json({ 
         success: false, 
         error: 'No active sandbox' 
@@ -16,7 +18,7 @@ export async function POST(request: NextRequest) {
     console.log('[create-zip] Creating project zip...');
     
     // Create zip file in sandbox
-    const result = await global.activeSandbox.runCode(`
+    await globalThis.activeSandbox.runCode(`
 import zipfile
 import os
 import json
@@ -40,7 +42,7 @@ print(f" Created project.zip ({file_size} bytes)")
     `);
     
     // Read the zip file and convert to base64
-    const readResult = await global.activeSandbox.runCode(`
+    const readResult = await globalThis.activeSandbox.runCode(`
 import base64
 
 with open('/tmp/project.zip', 'rb') as f:

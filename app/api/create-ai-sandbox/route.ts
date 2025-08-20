@@ -3,6 +3,8 @@ import { Sandbox } from '@e2b/code-interpreter';
 import type { SandboxState } from '@/types/sandbox';
 import { appConfig } from '@/config/app.config';
 
+export const runtime = 'edge';
+
 // Store active sandbox globally
 declare global {
   var activeSandbox: any;
@@ -18,14 +20,14 @@ export async function POST() {
     console.log('[create-ai-sandbox] Creating base sandbox...');
     
     // Kill existing sandbox if any
-    if (global.activeSandbox) {
+    if (globalThis.activeSandbox) {
       console.log('[create-ai-sandbox] Killing existing sandbox...');
       try {
-        await global.activeSandbox.kill();
+        await globalThis.activeSandbox.kill();
       } catch (e) {
         console.error('Failed to close existing sandbox:', e);
       }
-      global.activeSandbox = null;
+      globalThis.activeSandbox = null;
     }
     
     // Clear existing files tracking

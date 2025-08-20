@@ -1,0 +1,9 @@
+name = "open-lovable"
+compatibility_date = "2024-01-15"
+pages_build_output_dir = ".vercel/output/static"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+# Enable edge routes that were stubbed for build stability
+ENABLE_APPLY_AI_CODE_STREAM = "true"
+ENABLE_DETECT_INSTALL = "true"

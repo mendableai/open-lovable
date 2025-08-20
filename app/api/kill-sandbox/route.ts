@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 
+export const runtime = 'edge';
+
 declare global {
   var activeSandbox: any;
   var sandboxData: any;
@@ -13,21 +15,21 @@ export async function POST() {
     let sandboxKilled = false;
     
     // Kill existing sandbox if any
-    if (global.activeSandbox) {
+    if (globalThis.activeSandbox) {
       try {
-        await global.activeSandbox.close();
+        await globalThis.activeSandbox.close();
         sandboxKilled = true;
         console.log('[kill-sandbox] Sandbox closed successfully');
       } catch (e) {
         console.error('[kill-sandbox] Failed to close sandbox:', e);
       }
-      global.activeSandbox = null;
-      global.sandboxData = null;
+      globalThis.activeSandbox = null;
+      globalThis.sandboxData = null;
     }
     
     // Clear existing files tracking
-    if (global.existingFiles) {
-      global.existingFiles.clear();
+    if (globalThis.existingFiles) {
+      globalThis.existingFiles.clear();
     }
     
     return NextResponse.json({

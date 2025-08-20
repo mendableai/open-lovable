@@ -11,6 +11,8 @@ import { FileManifest } from '@/types/file-manifest';
 import type { ConversationState, ConversationMessage, ConversationEdit } from '@/types/conversation';
 import { appConfig } from '@/config/app.config';
 
+export const runtime = 'edge';
+
 const groq = createGroq({
   apiKey: process.env.GROQ_API_KEY,
 });
@@ -162,15 +164,15 @@ export async function POST(request: NextRequest) {
         
         if (isEdit) {
           console.log('[generate-ai-code-stream] Edit mode detected - starting agentic search workflow');
-          console.log('[generate-ai-code-stream] Has fileCache:', !!global.sandboxState?.fileCache);
-          console.log('[generate-ai-code-stream] Has manifest:', !!global.sandboxState?.fileCache?.manifest);
+          console.log('[generate-ai-code-stream] Has fileCache:', !!globalThis.sandboxState?.fileCache);
+          console.log('[generate-ai-code-stream] Has manifest:', !!globalThis.sandboxState?.fileCache?.manifest);
           
-          const manifest: FileManifest | undefined = global.sandboxState?.fileCache?.manifest;
+          const manifest: FileManifest | undefined = globalThis.sandboxState?.fileCache?.manifest;
           
           if (manifest) {
             await sendProgress({ type: 'status', message: '🔍 Creating search plan...' });
             
-            const fileContents = global.sandboxState.fileCache.files;
+            const fileContents = globalThis.sandboxState?.fileCache?.files || {};
             console.log('[generate-ai-code-stream] Files available for search:', Object.keys(fileContents).length);
             
             // STEP 1: Get search plan from AI
@@ -331,7 +333,7 @@ User request: "${prompt}"`;
                         
                         // For now, fall back to keyword search since we don't have file contents for search execution
                         // This path happens when no manifest was initially available
-                        let targetFiles = [];
+                        let targetFiles: string[] = [];
                         if (!searchPlan || searchPlan.searchTerms.length === 0) {
                           console.warn('[generate-ai-code-stream] No target files after fetch, searching for relevant files');
                           
@@ -911,17 +913,17 @@ CRITICAL: When files are provided in the context:
           }
           
           // Use backend file cache instead of frontend-provided files
-          let backendFiles = global.sandboxState?.fileCache?.files || {};
+          let backendFiles = globalThis.sandboxState?.fileCache?.files || {};
           let hasBackendFiles = Object.keys(backendFiles).length > 0;
           
           console.log('[generate-ai-code-stream] Backend file cache status:');
-          console.log('[generate-ai-code-stream] - Has sandboxState:', !!global.sandboxState);
-          console.log('[generate-ai-code-stream] - Has fileCache:', !!global.sandboxState?.fileCache);
+          console.log('[generate-ai-code-stream] - Has sandboxState:', !!globalThis.sandboxState);
+          console.log('[generate-ai-code-stream] - Has fileCache:', !!globalThis.sandboxState?.fileCache);
           console.log('[generate-ai-code-stream] - File count:', Object.keys(backendFiles).length);
-          console.log('[generate-ai-code-stream] - Has manifest:', !!global.sandboxState?.fileCache?.manifest);
+          console.log('[generate-ai-code-stream] - Has manifest:', !!globalThis.sandboxState?.fileCache?.manifest);
           
           // If no backend files and we're in edit mode, try to fetch from sandbox
-          if (!hasBackendFiles && isEdit && (global.activeSandbox || context?.sandboxId)) {
+          if (!hasBackendFiles && isEdit && (globalThis.activeSandbox || context?.sandboxId)) {
             console.log('[generate-ai-code-stream] No backend files, attempting to fetch from sandbox...');
             
             try {
@@ -936,33 +938,51 @@ CRITICAL: When files are provided in the context:
                   console.log('[generate-ai-code-stream] Successfully fetched', Object.keys(filesData.files).length, 'files from sandbox');
                   
                   // Initialize sandboxState if needed
-                  if (!global.sandboxState) {
-                    global.sandboxState = {
+                  if (!globalThis.sandboxState) {
+                    globalThis.sandboxState = {
                       fileCache: {
                         files: {},
                         lastSync: Date.now(),
                         sandboxId: context?.sandboxId || 'unknown'
                       }
                     } as any;
-                  } else if (!global.sandboxState.fileCache) {
-                    global.sandboxState.fileCache = {
+                  } else if (!globalThis.sandboxState.fileCache) {
+                    globalThis.sandboxState.fileCache = {
                       files: {},
                       lastSync: Date.now(),
                       sandboxId: context?.sandboxId || 'unknown'
                     };
                   }
                   
-                  // Store files in cache
+                  // Ensure fileCache exists and store files in cache
+                  let fileCache = globalThis.sandboxState?.fileCache;
+                  if (!fileCache) {
+                    if (!globalThis.sandboxState) {
+                      (globalThis as any).sandboxState = {} as any;
+                    }
+                    (globalThis.sandboxState as any).fileCache = {
+                      files: {},
+                      lastSync: Date.now(),
+                      sandboxId: context?.sandboxId || 'unknown'
+                    } as any;
+                    fileCache = globalThis.sandboxState.fileCache;
+                  }
                   for (const [path, content] of Object.entries(filesData.files)) {
                     const normalizedPath = path.replace('/home/user/app/', '');
-                    global.sandboxState.fileCache.files[normalizedPath] = {
+                    (fileCache as any).files[normalizedPath] = {
                       content: content as string,
                       lastModified: Date.now()
                     };
                   }
                   
                   if (filesData.manifest) {
-                    global.sandboxState.fileCache.manifest = filesData.manifest;
+                    // guard in case fileCache is undefined/null
+                    if (!globalThis.sandboxState) {
+                      (globalThis as any).sandboxState = { fileCache: { files: {}, lastSync: Date.now(), sandboxId: context?.sandboxId || 'unknown' } } as any;
+                    } else if (!globalThis.sandboxState.fileCache) {
+                      (globalThis.sandboxState as any).fileCache = { files: {}, lastSync: Date.now(), sandboxId: context?.sandboxId || 'unknown' } as any;
+                    }
+                    (globalThis.sandboxState as any).fileCache.manifest = filesData.manifest;
                     
                     // Now try to analyze edit intent with the fetched manifest
                     if (!editContext) {
@@ -992,8 +1012,11 @@ CRITICAL: When files are provided in the context:
                     }
                   }
                   
-                  // Update variables
-                  backendFiles = global.sandboxState.fileCache.files;
+                  // Update variables (null-safe)
+                  const safeCache = globalThis.sandboxState && globalThis.sandboxState.fileCache
+                    ? globalThis.sandboxState.fileCache
+                    : { files: {} } as any;
+                  backendFiles = safeCache.files || {};
                   hasBackendFiles = Object.keys(backendFiles).length > 0;
                   console.log('[generate-ai-code-stream] Updated backend cache with fetched files');
                 }
@@ -1223,7 +1246,6 @@ If you're running out of space, generate FEWER files but make them COMPLETE.
 It's better to have 3 complete files than 10 incomplete files.`
             }
           ],
-          maxTokens: 8192, // Reduce to ensure completion
           stopSequences: [] // Don't stop early
           // Note: Neither Groq nor Anthropic models support tool/function calling in this context
           // We use XML tags for package detection instead
@@ -1266,8 +1288,7 @@ It's better to have 3 complete files than 10 incomplete files.`
           // Combine with buffer for tag detection
           const searchText = tagBuffer + text;
           
-          // Log streaming chunks to console
-          process.stdout.write(text);
+          // Logging to stdout is not supported on Cloudflare Workers; omit per-chunk writes
           
           // Check if we're entering or leaving a tag
           const hasOpenTag = /<(file|package|packages|explanation|command|structure|template)\b/.test(text);
@@ -1586,16 +1607,32 @@ Provide the complete file content without any truncation. Include all necessary 
                 // Make a focused API call to complete this specific file
                 // Create a new client for the completion based on the provider
                 let completionClient;
-                if (model.includes('gpt') || model.includes('openai')) {
+                if (model.includes('gpt') || model.startsWith('openai/')) {
                   completionClient = openai;
-                } else if (model.includes('claude')) {
+                } else if (model.includes('claude') || model.startsWith('anthropic/')) {
                   completionClient = anthropic;
+                } else if (model.includes('gemini') || model.startsWith('google/')) {
+                  completionClient = googleGenerativeAI;
+                } else if (model.startsWith('groq/')) {
+                  completionClient = groq;
                 } else {
                   completionClient = groq;
                 }
                 
+                // Normalize model name for the selected provider (by prefix)
+                let completionModelName = model;
+                if (completionModelName.startsWith('openai/')) {
+                  completionModelName = completionModelName.replace('openai/', '');
+                } else if (completionModelName.startsWith('anthropic/')) {
+                  completionModelName = completionModelName.replace('anthropic/', '');
+                } else if (completionModelName.startsWith('google/')) {
+                  completionModelName = completionModelName.replace('google/', '');
+                } else if (completionModelName.startsWith('groq/')) {
+                  completionModelName = completionModelName.replace('groq/', '');
+                }
+                
                 const completionResult = await streamText({
-                  model: completionClient(modelMapping[model] || model),
+                  model: completionClient(completionModelName),
                   messages: [
                     { 
                       role: 'system', 
@@ -1603,8 +1640,7 @@ Provide the complete file content without any truncation. Include all necessary 
                     },
                     { role: 'user', content: completionPrompt }
                   ],
-                  temperature: isGPT5 ? undefined : appConfig.ai.defaultTemperature,
-                  maxTokens: appConfig.ai.truncationRecoveryMaxTokens
+                  temperature: model.startsWith('openai/gpt-5') ? undefined : appConfig.ai.defaultTemperature,
                 });
                 
                 // Get the full text from the stream

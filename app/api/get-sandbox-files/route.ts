@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { parseJavaScriptFile, buildComponentTree } from '@/lib/file-parser';
 import { FileManifest, FileInfo, RouteInfo } from '@/types/file-manifest';
-import type { SandboxState } from '@/types/sandbox';
+// import type { SandboxState } from '@/types/sandbox';
+
+export const runtime = 'edge';
 
 declare global {
   var activeSandbox: any;
@@ -9,7 +11,7 @@ declare global {
 
 export async function GET() {
   try {
-    if (!global.activeSandbox) {
+    if (!globalThis.activeSandbox) {
       return NextResponse.json({
         success: false,
         error: 'No active sandbox'
@@ -19,7 +21,7 @@ export async function GET() {
     console.log('[get-sandbox-files] Fetching and analyzing file structure...');
     
     // Get all React/JS/CSS files
-    const result = await global.activeSandbox.runCode(`
+    const result = await globalThis.activeSandbox.runCode(`
 import os
 import json
 
@@ -126,8 +128,8 @@ print(json.dumps(result))
     fileManifest.routes = extractRoutes(fileManifest.files);
     
     // Update global file cache with manifest
-    if (global.sandboxState?.fileCache) {
-      global.sandboxState.fileCache.manifest = fileManifest;
+    if (globalThis.sandboxState?.fileCache) {
+      globalThis.sandboxState.fileCache.manifest = fileManifest;
     }
 
     return NextResponse.json({
@@ -154,7 +156,7 @@ function extractRoutes(files: Record<string, FileInfo>): RouteInfo[] {
   for (const [path, fileInfo] of Object.entries(files)) {
     if (fileInfo.content.includes('<Route') || fileInfo.content.includes('createBrowserRouter')) {
       // Extract route definitions (simplified)
-      const routeMatches = fileInfo.content.matchAll(/path=["']([^"']+)["'].*(?:element|component)={([^}]+)}/g);
+      const routeMatches = fileInfo.content.matchAll(/path=["']([^"']+)["'].*(?:element|component)={[^}]+}/g);
       
       for (const match of routeMatches) {
         const [, routePath, componentRef] = match;

@@ -6,8 +6,17 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
+    "build:next": "next build",
     "start": "next start",
     "lint": "next lint",
+    "prebuild:cf": "node ./scripts/set-cf-compat-flags.mjs || true",
+    "build:cf": "npm run build && npx @cloudflare/next-on-pages@latest",
+    "preview:cf": "wrangler pages dev .vercel/output/static --compatibility-date=2024-01-15",
+    "set:cf-flags": "node ./scripts/set-cf-compat-flags.mjs",
+    "deploy:cf": "npm run build:cf && wrangler pages deploy .vercel/output/static",
+    "deploy:pages": "npm run build:cf",
+    "build:test": "npm run build && npx @cloudflare/next-on-pages@latest --dry-run",
+    "build:pages": "npm run build && npx @cloudflare/next-on-pages@latest",
     "test:integration": "node tests/e2b-integration.test.js",
     "test:api": "node tests/api-endpoints.test.js",
     "test:code": "node tests/code-execution.test.js",
@@ -24,7 +33,6 @@
     "@radix-ui/react-switch": "^1.2.5",
     "@types/react-syntax-highlighter": "^15.5.13",
     "ai": "^5.0.0",
-    "autoprefixer": "^10.4.21",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cors": "^2.8.5",
@@ -43,14 +51,17 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@cloudflare/next-on-pages": "^1.13.6",
     "@eslint/eslintrc": "^3",
-    "@tailwindcss/postcss": "^4.1.11",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "autoprefixer": "^10.4.21",
     "eslint": "^9",
     "eslint-config-next": "15.4.3",
-    "tailwindcss": "^4.1.11",
-    "typescript": "^5"
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5",
+    "wrangler": "^3.85.0"
   }
 }

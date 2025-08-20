@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 
+export const runtime = 'edge';
+
 declare global {
   var viteErrorsCache: { errors: any[], timestamp: number } | null;
 }
@@ -7,7 +9,7 @@ declare global {
 export async function POST() {
   try {
     // Clear the cache
-    global.viteErrorsCache = null;
+    globalThis.viteErrorsCache = null;
     
     console.log('[clear-vite-errors-cache] Cache cleared');
     
