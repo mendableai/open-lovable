@@ -1,0 +1,63 @@
+{
+  "name": "open-lovable-android",
+  "version": "1.0.0",
+  "description": "Open-Lovable Android Native App - AI-Powered Code Generation & Execution",
+  "main": "index.js",
+  "scripts": {
+    "android": "react-native run-android",
+    "ios": "react-native run-ios",
+    "lint": "eslint .",
+    "start": "react-native start",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@react-navigation/native": "^6.1.16",
+    "@react-navigation/stack": "^6.4.1",
+    "react": "19.1.0",
+    "react-native": "0.81.0",
+    "react-native-gesture-handler": "^2.20.2",
+    "react-native-paper": "^5.12.3",
+    "react-native-safe-area-context": "^4.12.0",
+    "react-native-screens": "^3.34.0",
+    "react-native-vector-icons": "^10.3.0",
+    "react-native-webview": "^13.10.1"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.24.0",
+    "@babel/preset-env": "^7.24.0",
+    "@babel/runtime": "^7.24.0",
+    "@react-native/babel-preset": "^0.81.0",
+    "@react-native/eslint-config": "^0.81.0",
+    "@react-native/metro-config": "^0.81.0",
+    "@react-native/typescript-config": "^0.81.0",
+    "@types/react": "^19.0.0",
+    "@types/react-test-renderer": "^19.0.0",
+    "babel-jest": "^29.7.0",
+    "eslint": "^8.57.0",
+    "jest": "^29.7.0",
+    "prettier": "^3.3.3",
+    "react-test-renderer": "19.1.0",
+    "typescript": "5.4.2"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "react-native",
+    "android",
+    "open-lovable",
+    "ai",
+    "code-generation",
+    "sandbox"
+  ],
+  "author": "Open-Lovable Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mendableai/open-lovable.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mendableai/open-lovable/issues"
+  },
+  "homepage": "https://github.com/mendableai/open-lovable#readme"
+}

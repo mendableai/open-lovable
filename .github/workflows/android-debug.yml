@@ -1,0 +1,87 @@
+name: Build Android Debug APK
+
+on:
+  push:
+    tags:
+      - 'debug-*'   # يبدأ البناء فقط عند عمل Tag جديد (مثال: debug-v1.0.0)
+  workflow_dispatch:  # للبناء اليدوي
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          cd OpenLovableApp
+          npm install --legacy-peer-deps
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Build Debug APK
+        run: |
+          cd OpenLovableApp/android
+          ./gradlew clean
+          ./gradlew assembleDebug
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-debug-apk
+          path: OpenLovableApp/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 7
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: OpenLovableApp/android/app/build/outputs/apk/debug/app-debug.apk
+          tag_name: ${{ github.ref_name }}
+          name: Open-Lovable Android Debug APK
+          body: |
+            🎉 Open-Lovable Android Debug APK
+            
+            **Version:** ${{ github.ref_name }}
+            **Build Date:** ${{ github.event.head_commit.timestamp }}
+            
+            ### 📱 Features
+            - Debug Android application
+            - Built with React Native
+            - No signing required
+            
+            ### 🔧 Installation
+            1. Download the APK file
+            2. Enable "Install from unknown sources" in your Android settings
+            3. Install the APK file
+            
+            ### 📝 Notes
+            - This is a debug build
+            - Requires Android 7.0 (API level 24) or higher
+            - No signing required for testing
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

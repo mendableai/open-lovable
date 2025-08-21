@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { log } from '@/lib/logger';
 
 declare global {
   var viteErrorsCache: { errors: any[], timestamp: number } | null;
@@ -17,7 +18,7 @@ export async function POST() {
     });
     
   } catch (error) {
-    console.error('[clear-vite-errors-cache] Error:', error);
+    log.error('Clear Vite errors cache error', 'clear-vite-errors-cache', { error });
     return NextResponse.json({ 
       success: false, 
       error: (error as Error).message 

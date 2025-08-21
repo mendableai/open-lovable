@@ -6,6 +6,7 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { generateObject } from 'ai';
 import { z } from 'zod';
 import type { FileManifest } from '@/types/file-manifest';
+import { log } from '@/lib/logger';
 
 const groq = createGroq({
   apiKey: process.env.GROQ_API_KEY,
@@ -53,10 +54,11 @@ export async function POST(request: NextRequest) {
   try {
     const { prompt, manifest, model = 'openai/gpt-oss-20b' } = await request.json();
     
-    console.log('[analyze-edit-intent] Request received');
-    console.log('[analyze-edit-intent] Prompt:', prompt);
-    console.log('[analyze-edit-intent] Model:', model);
-    console.log('[analyze-edit-intent] Manifest files count:', manifest?.files ? Object.keys(manifest.files).length : 0);
+    log.api('POST', '/api/analyze-edit-intent', {
+      promptLength: prompt?.length || 0,
+      model,
+      manifestFilesCount: manifest?.files ? Object.keys(manifest.files).length : 0
+    });
     
     if (!prompt || !manifest) {
       return NextResponse.json({
@@ -80,18 +82,20 @@ export async function POST(request: NextRequest) {
       })
       .join('\n');
     
-    console.log('[analyze-edit-intent] Valid files found:', validFiles.length);
+    log.debug('Valid files found', 'analyze-edit-intent', { count: validFiles.length });
     
     if (validFiles.length === 0) {
-      console.error('[analyze-edit-intent] No valid files found in manifest');
+      log.error('No valid files found in manifest', 'analyze-edit-intent');
       return NextResponse.json({
         success: false,
         error: 'No valid files found in manifest'
       }, { status: 400 });
     }
     
-    console.log('[analyze-edit-intent] Analyzing prompt:', prompt);
-    console.log('[analyze-edit-intent] File summary preview:', fileSummary.split('\n').slice(0, 5).join('\n'));
+    log.debug('Analyzing prompt', 'analyze-edit-intent', {
+      promptLength: prompt.length,
+      fileSummaryPreview: fileSummary.split('\n').slice(0, 3).join('\n')
+    });
     
     // Select the appropriate AI model based on the request
     let aiModel;
@@ -110,7 +114,7 @@ export async function POST(request: NextRequest) {
       aiModel = groq(model);
     }
     
-    console.log('[analyze-edit-intent] Using AI model:', model);
+    log.debug('Using AI model', 'analyze-edit-intent', { model });
     
     // Use AI to create a search plan
     const result = await generateObject({
@@ -157,7 +161,7 @@ Create a search plan to find the exact code that needs to be modified. Include s
       ]
     });
     
-    console.log('[analyze-edit-intent] Search plan created:', {
+    log.debug('Search plan created', 'analyze-edit-intent', {
       editType: result.object.editType,
       searchTerms: result.object.searchTerms,
       patterns: result.object.regexPatterns?.length || 0,
@@ -171,7 +175,7 @@ Create a search plan to find the exact code that needs to be modified. Include s
     });
     
   } catch (error) {
-    console.error('[analyze-edit-intent] Error:', error);
+    log.error('Analysis error', 'analyze-edit-intent', { error });
     return NextResponse.json({
       success: false,
       error: (error as Error).message

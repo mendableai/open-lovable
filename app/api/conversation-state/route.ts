@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { ConversationState } from '@/types/conversation';
+import { log } from '@/lib/logger';
 
 declare global {
   var conversationState: ConversationState | null;
@@ -21,7 +22,7 @@ export async function GET() {
       state: global.conversationState
     });
   } catch (error) {
-    console.error('[conversation-state] Error getting state:', error);
+    log.error('Error getting state', 'conversation-state', { error });
     return NextResponse.json({
       success: false,
       error: (error as Error).message
@@ -115,7 +116,7 @@ export async function POST(request: NextRequest) {
         }, { status: 400 });
     }
   } catch (error) {
-    console.error('[conversation-state] Error:', error);
+    log.error('Conversation state error', 'conversation-state', { error });
     return NextResponse.json({
       success: false,
       error: (error as Error).message
@@ -135,7 +136,7 @@ export async function DELETE() {
       message: 'Conversation state cleared'
     });
   } catch (error) {
-    console.error('[conversation-state] Error clearing state:', error);
+    log.error('Error clearing state', 'conversation-state', { error });
     return NextResponse.json({
       success: false,
       error: (error as Error).message

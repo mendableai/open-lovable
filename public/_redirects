@@ -1,0 +1,7 @@
+# Cloudflare Pages redirects for Next.js app
+
+# API routes redirect to functions
+/api/* /api/:splat 200
+
+# Catch all routes for Next.js client-side routing
+/* /index.html 200

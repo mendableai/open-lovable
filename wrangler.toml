@@ -1,0 +1,98 @@
+name = "open-lovable"
+compatibility_date = "2024-08-19"
+compatibility_flags = ["nodejs_compat"]
+
+[build]
+command = "npm run build"
+
+[build.environment_variables]
+NODE_VERSION = "20"
+NEXT_TELEMETRY_DISABLED = "1"
+SKIP_ENV_VALIDATION = "true"
+
+[vars]
+NODE_ENV = "production"
+APP_NAME = "Open Lovable"
+APP_VERSION = "2.0.0"
+DEFAULT_AI_MODEL = "openai/gpt-4"
+CF_PAGES_URL = "https://open-lovable.pages.dev"
+LOG_LEVEL = "INFO"
+
+# Environment variables (set via Cloudflare Dashboard -> Settings -> Environment Variables)
+# REQUIRED:
+# OPENAI_API_KEY = "sk-your-openai-key-here"
+# ANTHROPIC_API_KEY = "sk-ant-your-anthropic-key-here" 
+# E2B_API_KEY = "e2b-your-e2b-key-here"
+
+# OPTIONAL:
+# GROQ_API_KEY = "gsk-your-groq-key-here"
+# GEMINI_API_KEY = "your-gemini-key-here"
+# SCREENSHOT_API_KEY = "your-screenshot-service-key"
+# SCREENSHOT_SERVICE_URL = "https://your-screenshot-service.com/api"
+# BROWSER_RENDERING_API = "enabled" (if using Cloudflare Browser Rendering)
+
+# ANDROID BUILD (if using):
+# KEYSTORE_PASSWORD = "your-keystore-password"
+# KEY_PASSWORD = "your-key-password"
+
+pages_build_output_dir = "out"
+
+# Database bindings (uncomment and configure as needed)
+# [[d1_databases]]
+# binding = "AI_CONTEXT_DB"
+# database_name = "open-lovable-conversations"
+# database_id = "your-d1-database-id"
+
+# [[d1_databases]]
+# binding = "SANDBOX_DB"
+# database_name = "open-lovable-sandboxes"
+# database_id = "your-d1-database-id"
+
+# KV bindings (uncomment and configure as needed)
+# [[kv_namespaces]]
+# binding = "SANDBOX_KV"
+# id = "your-kv-namespace-id"
+
+# [[kv_namespaces]]
+# binding = "CACHE_KV"
+# id = "your-kv-namespace-id"
+
+# Browser Rendering binding (uncomment if using)
+# [[browser]]
+# binding = "BROWSER_RENDERING_API"
+
+# For Next.js static export - handle all routes
+[[redirects]]
+from = "/api/*"
+to = "/api/:splat"
+status = 200
+
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200
+
+# Security headers
+[[headers]]
+for = "/*"
+[headers.values]
+X-Frame-Options = "DENY"
+X-Content-Type-Options = "nosniff"
+Referrer-Policy = "strict-origin-when-cross-origin"
+Permissions-Policy = "geolocation=(), microphone=(), camera=()"
+
+# Cache static assets
+[[headers]]
+for = "/assets/*"
+[headers.values]
+Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+for = "*.js"
+[headers.values]
+Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+for = "*.css"
+[headers.values]
+Cache-Control = "public, max-age=31536000, immutable"

@@ -1,0 +1,90 @@
+name: Build Android APK
+
+on:
+  push:
+    tags:
+      - 'v*'   # يبدأ البناء فقط عند عمل Tag جديد (مثال: v1.0.0)
+  workflow_dispatch:  # للبناء اليدوي
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          cd OpenLovableApp
+          npm install --legacy-peer-deps
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Generate Keystore
+        run: |
+          cd OpenLovableApp/android/app
+          keytool -genkeypair -v -storetype PKCS12 -keystore release.keystore -alias my-key-alias -keyalg RSA -keysize 2048 -validity 10000 -storepass ${{ secrets.KEYSTORE_PASSWORD }} -keypass ${{ secrets.KEY_PASSWORD }} -dname "CN=OpenLovable, OU=Development, O=OpenLovable, L=City, S=State, C=US"
+
+      - name: Build Release APK
+        run: |
+          cd OpenLovableApp/android
+          ./gradlew clean
+          ./gradlew assembleRelease
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: my-key-alias
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      - name: Upload APK to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: OpenLovableApp/android/app/build/outputs/apk/release/app-release.apk
+          tag_name: ${{ github.ref_name }}
+          name: Open-Lovable Android APK
+          body: |
+            🎉 Open-Lovable Android App
+            
+            **Version:** ${{ github.ref_name }}
+            **Build Date:** ${{ github.event.head_commit.timestamp }}
+            
+            ### 📱 Features
+            - Native Android application
+            - Built with React Native
+            - Full feature parity with web version
+            - Real APIs integration (OpenAI, Anthropic, E2B)
+            
+            ### 🔧 Installation
+            1. Download the APK file
+            2. Enable "Install from unknown sources" in your Android settings
+            3. Install the APK file
+            
+            ### 📝 Notes
+            - This is a release build optimized for performance
+            - Requires Android 7.0 (API level 24) or higher
+            - Built with real APIs (no mock data)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

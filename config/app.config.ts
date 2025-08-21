@@ -27,8 +27,8 @@ export const appConfig = {
   
   // AI Model Configuration
   ai: {
-    // Default AI model
-    defaultModel: 'moonshotai/kimi-k2-instruct',
+    // Default AI model - dynamically configurable
+    defaultModel: process.env.DEFAULT_AI_MODEL || 'openai/gpt-4',
     
     // Available models
     availableModels: [
@@ -65,7 +65,7 @@ export const appConfig = {
     packageInstallRefreshDelay: 5000,
     
     // Enable/disable automatic truncation recovery
-    enableTruncationRecovery: false, // Disabled - too many false positives
+    enableTruncationRecovery: true, // Re-enabled with improved logic
     
     // Maximum number of truncation recovery attempts per file
     maxTruncationRecoveryAttempts: 1,

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { SandboxState } from '@/types/sandbox';
 import type { ConversationState } from '@/types/conversation';
+import { log } from '@/lib/logger';
 
 declare global {
   var conversationState: ConversationState | null;
@@ -44,10 +45,10 @@ function parseAIResponse(response: string): ParsedResponse {
       shouldReplace = true; // First occurrence
     } else if (!existing.isComplete && hasClosingTag) {
       shouldReplace = true; // Replace incomplete with complete
-      console.log(`[parseAIResponse] Replacing incomplete ${filePath} with complete version`);
+      log.file('Replacing incomplete with complete version', filePath);
     } else if (existing.isComplete && hasClosingTag && content.length > existing.content.length) {
       shouldReplace = true; // Replace with longer complete version
-      console.log(`[parseAIResponse] Replacing ${filePath} with longer complete version`);
+      log.file('Replacing with longer complete version', filePath, { length: content.length });
     } else if (!existing.isComplete && !hasClosingTag && content.length > existing.content.length) {
       shouldReplace = true; // Both incomplete, keep longer one
     }
@@ -55,7 +56,7 @@ function parseAIResponse(response: string): ParsedResponse {
     if (shouldReplace) {
       // Additional validation: reject obviously broken content
       if (content.includes('...') && !content.includes('...props') && !content.includes('...rest')) {
-        console.warn(`[parseAIResponse] Warning: ${filePath} contains ellipsis, may be truncated`);
+        log.warn('File contains ellipsis, may be truncated', 'parseAIResponse', { filePath });
         // Still use it if it's the only version we have
         if (!existing) {
           fileMap.set(filePath, { content, isComplete: hasClosingTag });
@@ -69,7 +70,7 @@ function parseAIResponse(response: string): ParsedResponse {
   // Convert map to array for sections.files
   for (const [path, { content, isComplete }] of fileMap.entries()) {
     if (!isComplete) {
-      console.log(`[parseAIResponse] Warning: File ${path} appears to be truncated (no closing tag)`);
+      log.warn('File appears to be truncated (no closing tag)', 'parseAIResponse', { path });
     }
     
     sections.files.push({
@@ -168,10 +169,11 @@ export async function POST(request: NextRequest) {
     }
     
     // Apply to active sandbox
-    console.log('[apply-ai-code] Applying code to sandbox...');
-    console.log('[apply-ai-code] Is edit mode:', isEdit);
-    console.log('[apply-ai-code] Files to write:', parsed.files.map(f => f.path));
-    console.log('[apply-ai-code] Existing files:', Array.from(global.existingFiles));
+    log.debug('Applying code to sandbox', 'apply-ai-code', {
+      isEdit,
+      filesToWrite: parsed.files.map(f => f.path),
+      existingFiles: Array.from(global.existingFiles)
+    });
     
     const results = {
       filesCreated: [] as string[],
@@ -188,7 +190,7 @@ export async function POST(request: NextRequest) {
     const uniquePackages = [...new Set(allPackages)]; // Remove duplicates
     
     if (uniquePackages.length > 0) {
-      console.log('[apply-ai-code] Installing packages from XML tags and tool calls:', uniquePackages);
+      log.debug('Installing packages from XML tags and tool calls', 'apply-ai-code', { packages: uniquePackages });
       
       try {
         const installResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/install-packages`, {
@@ -199,7 +201,7 @@ export async function POST(request: NextRequest) {
         
         if (installResponse.ok) {
           const installResult = await installResponse.json();
-          console.log('[apply-ai-code] Package installation result:', installResult);
+          log.debug('Package installation result', 'apply-ai-code', installResult);
           
           if (installResult.installed && installResult.installed.length > 0) {
             results.packagesInstalled = installResult.installed;
@@ -209,12 +211,13 @@ export async function POST(request: NextRequest) {
           }
         }
       } catch (error) {
-        console.error('[apply-ai-code] Error installing packages:', error);
+        log.error('Error installing packages', 'apply-ai-code', { error });
       }
     } else {
       // Fallback to detecting packages from code
-      console.log('[apply-ai-code] No packages provided, detecting from generated code...');
-      console.log('[apply-ai-code] Number of files to scan:', parsed.files.length);
+      log.debug('No packages provided, detecting from generated code', 'apply-ai-code', { 
+        filesToScan: parsed.files.length 
+      });
       
       // Filter out config files first
       const configFiles = ['tailwind.config.js', 'vite.config.js', 'package.json', 'package-lock.json', 'tsconfig.json', 'postcss.config.js'];
@@ -229,43 +232,43 @@ export async function POST(request: NextRequest) {
         filesForPackageDetection[file.path] = file.content;
         // Log if heroicons is found
         if (file.content.includes('heroicons')) {
-          console.log(`[apply-ai-code] Found heroicons import in ${file.path}`);
+          log.debug('Found heroicons import', 'apply-ai-code', { filePath: file.path });
         }
       }
       
       try {
-        console.log('[apply-ai-code] Calling detect-and-install-packages...');
+        log.debug('Calling detect-and-install-packages', 'apply-ai-code');
         const packageResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/detect-and-install-packages`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ files: filesForPackageDetection })
         });
         
-        console.log('[apply-ai-code] Package detection response status:', packageResponse.status);
+        log.debug('Package detection response', 'apply-ai-code', { status: packageResponse.status });
         
         if (packageResponse.ok) {
           const packageResult = await packageResponse.json();
-          console.log('[apply-ai-code] Package installation result:', JSON.stringify(packageResult, null, 2));
+          log.debug('Package installation result', 'apply-ai-code', packageResult);
         
         if (packageResult.packagesInstalled && packageResult.packagesInstalled.length > 0) {
           results.packagesInstalled = packageResult.packagesInstalled;
-          console.log(`[apply-ai-code] Installed packages: ${packageResult.packagesInstalled.join(', ')}`);
+          log.package('Installed packages', packageResult.packagesInstalled.join(', '));
         }
         
         if (packageResult.packagesAlreadyInstalled && packageResult.packagesAlreadyInstalled.length > 0) {
           results.packagesAlreadyInstalled = packageResult.packagesAlreadyInstalled;
-          console.log(`[apply-ai-code] Already installed: ${packageResult.packagesAlreadyInstalled.join(', ')}`);
+          log.debug('Already installed packages', 'apply-ai-code', { packages: packageResult.packagesAlreadyInstalled });
         }
         
         if (packageResult.packagesFailed && packageResult.packagesFailed.length > 0) {
           results.packagesFailed = packageResult.packagesFailed;
-          console.error(`[apply-ai-code] Failed to install packages: ${packageResult.packagesFailed.join(', ')}`);
+          log.error('Failed to install packages', 'apply-ai-code', { packages: packageResult.packagesFailed });
           results.errors.push(`Failed to install packages: ${packageResult.packagesFailed.join(', ')}`);
         }
         
         // Force Vite restart after package installation
         if (results.packagesInstalled.length > 0) {
-          console.log('[apply-ai-code] Packages were installed, forcing Vite restart...');
+          log.debug('Packages were installed, forcing Vite restart', 'apply-ai-code');
           
           try {
             // Call the restart-vite endpoint
@@ -276,22 +279,22 @@ export async function POST(request: NextRequest) {
             
             if (restartResponse.ok) {
               const restartResult = await restartResponse.json();
-              console.log('[apply-ai-code] Vite restart result:', restartResult.message);
+              log.debug('Vite restart result', 'apply-ai-code', { message: restartResult.message });
             } else {
-              console.error('[apply-ai-code] Failed to restart Vite:', await restartResponse.text());
+              log.error('Failed to restart Vite', 'apply-ai-code', { error: await restartResponse.text() });
             }
           } catch (e) {
-            console.error('[apply-ai-code] Error calling restart-vite:', e);
+            log.error('Error calling restart-vite', 'apply-ai-code', { error: e });
           }
           
           // Additional delay to ensure files can be written after restart
           await new Promise(resolve => setTimeout(resolve, 1000));
         }
         } else {
-          console.error('[apply-ai-code] Package detection/installation failed:', await packageResponse.text());
+          log.error('Package detection/installation failed', 'apply-ai-code', { error: await packageResponse.text() });
         }
       } catch (error) {
-        console.error('[apply-ai-code] Error detecting/installing packages:', error);
+        log.error('Error detecting/installing packages', 'apply-ai-code', { error });
         // Continue with file writing even if package installation fails
       }
     }
@@ -301,7 +304,7 @@ export async function POST(request: NextRequest) {
     const filteredFiles = parsed.files.filter(file => {
       const fileName = file.path.split('/').pop() || '';
       if (configFiles.includes(fileName)) {
-        console.warn(`[apply-ai-code] Skipping config file: ${file.path} - already exists in template`);
+        log.warn('Skipping config file - already exists in template', 'apply-ai-code', { filePath: file.path });
         return false;
       }
       return true;
@@ -336,12 +339,12 @@ export async function POST(request: NextRequest) {
           fileContent = fileContent.replace(/import\s+['"]\.\/[^'"]+\.css['"];?\s*\n?/g, '');
         }
         
-        console.log(`[apply-ai-code] Writing file using E2B files API: ${fullPath}`);
+        log.file('Writing file using E2B API', fullPath);
         
         try {
           // Use the correct E2B API - sandbox.files.write()
           await global.activeSandbox.files.write(fullPath, fileContent);
-          console.log(`[apply-ai-code] Successfully wrote file: ${fullPath}`);
+          log.file('Successfully wrote file', fullPath);
           
           // Update file cache
           if (global.sandboxState?.fileCache) {
@@ -349,11 +352,11 @@ export async function POST(request: NextRequest) {
               content: fileContent,
               lastModified: Date.now()
             };
-            console.log(`[apply-ai-code] Updated file cache for: ${normalizedPath}`);
+            log.debug('Updated file cache', 'apply-ai-code', { path: normalizedPath });
           }
           
         } catch (writeError) {
-          console.error(`[apply-ai-code] E2B file write error:`, writeError);
+          log.error('E2B file write error', 'apply-ai-code', { error: writeError });
           throw writeError;
         }
         
@@ -569,11 +572,11 @@ if result.stderr:
     
     // Handle missing imports automatically
     if (missingImports.length > 0) {
-      console.warn('[apply-ai-code] Missing imports detected:', missingImports);
+      log.warn('Missing imports detected', 'apply-ai-code', { imports: missingImports });
       
       // Automatically generate missing components
       try {
-        console.log('[apply-ai-code] Auto-generating missing components...');
+        log.debug('Auto-generating missing components', 'apply-ai-code');
         
         const autoCompleteResponse = await fetch(
           `${request.nextUrl.origin}/api/auto-complete-components`,
@@ -602,7 +605,7 @@ if result.stderr:
           responseData.missingImports = missingImports;
         }
       } catch (error) {
-        console.error('[apply-ai-code] Auto-complete failed:', error);
+        log.error('Auto-complete failed', 'apply-ai-code', { error });
         responseData.warning = `Missing ${missingImports.length} imported components: ${missingImports.join(', ')}`;
         responseData.missingImports = missingImports;
       }
@@ -634,13 +637,13 @@ if result.stderr:
       // Update last updated timestamp
       global.conversationState.lastUpdated = Date.now();
       
-      console.log('[apply-ai-code] Updated conversation state with applied files:', results.filesCreated);
+      log.debug('Updated conversation state with applied files', 'apply-ai-code', { files: results.filesCreated });
     }
     
     return NextResponse.json(responseData);
     
   } catch (error) {
-    console.error('Apply AI code error:', error);
+    log.error('Apply AI code error', 'apply-ai-code', { error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to parse AI code' },
       { status: 500 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Sandbox } from '@e2b/code-interpreter';
 import type { SandboxState } from '@/types/sandbox';
 import type { ConversationState } from '@/types/conversation';
+import { log } from '@/lib/logger';
 
 declare global {
   var conversationState: ConversationState | null;
@@ -52,7 +53,7 @@ function parseAIResponse(response: string): ParsedResponse {
           
           // Log important packages for debugging
           if (packageName === 'react-router-dom' || packageName.includes('router') || packageName.includes('icon')) {
-            console.log(`[apply-ai-code-stream] Detected package from imports: ${packageName}`);
+            log.package('Detected from imports', packageName);
           }
         }
       }
@@ -81,10 +82,10 @@ function parseAIResponse(response: string): ParsedResponse {
       shouldReplace = true; // First occurrence
     } else if (!existing.isComplete && hasClosingTag) {
       shouldReplace = true; // Replace incomplete with complete
-      console.log(`[apply-ai-code-stream] Replacing incomplete ${filePath} with complete version`);
+      log.file('Replacing incomplete with complete version', filePath);
     } else if (existing.isComplete && hasClosingTag && content.length > existing.content.length) {
       shouldReplace = true; // Replace with longer complete version
-      console.log(`[apply-ai-code-stream] Replacing ${filePath} with longer complete version`);
+      log.file('Replacing with longer complete version', filePath, { length: content.length });
     } else if (!existing.isComplete && !hasClosingTag && content.length > existing.content.length) {
       shouldReplace = true; // Both incomplete, keep longer one
     }
@@ -92,7 +93,7 @@ function parseAIResponse(response: string): ParsedResponse {
     if (shouldReplace) {
       // Additional validation: reject obviously broken content
       if (content.includes('...') && !content.includes('...props') && !content.includes('...rest')) {
-        console.warn(`[apply-ai-code-stream] Warning: ${filePath} contains ellipsis, may be truncated`);
+        log.warn(`File contains ellipsis, may be truncated`, 'apply-ai-code-stream', { filePath });
         // Still use it if it's the only version we have
         if (!existing) {
           fileMap.set(filePath, { content, isComplete: hasClosingTag });
@@ -106,7 +107,7 @@ function parseAIResponse(response: string): ParsedResponse {
   // Convert map to array for sections.files
   for (const [path, { content, isComplete }] of fileMap.entries()) {
     if (!isComplete) {
-      console.log(`[apply-ai-code-stream] Warning: File ${path} appears to be truncated (no closing tag)`);
+      log.warn(`File appears to be truncated (no closing tag)`, 'apply-ai-code-stream', { path });
     }
     
     sections.files.push({
@@ -119,7 +120,7 @@ function parseAIResponse(response: string): ParsedResponse {
     for (const pkg of filePackages) {
       if (!sections.packages.includes(pkg)) {
         sections.packages.push(pkg);
-        console.log(`[apply-ai-code-stream] 📦 Package detected from imports: ${pkg}`);
+        log.package('Detected from imports', pkg);
       }
     }
   }
@@ -139,7 +140,7 @@ function parseAIResponse(response: string): ParsedResponse {
     for (const pkg of filePackages) {
       if (!sections.packages.includes(pkg)) {
         sections.packages.push(pkg);
-        console.log(`[apply-ai-code-stream] 📦 Package detected from imports: ${pkg}`);
+        log.package('Detected from imports', pkg);
       }
     }
   }
@@ -152,7 +153,7 @@ function parseAIResponse(response: string): ParsedResponse {
       .split(',')
       .map(f => f.trim())
       .filter(f => f.endsWith('.jsx') || f.endsWith('.js') || f.endsWith('.tsx') || f.endsWith('.ts') || f.endsWith('.css') || f.endsWith('.json') || f.endsWith('.html'));
-    console.log(`[apply-ai-code-stream] Detected generated files from plain text: ${filesList.join(', ')}`);
+    log.debug('Detected generated files from plain text', 'apply-ai-code-stream', { files: filesList });
     
     // Try to extract the actual file content if it follows
     for (const fileName of filesList) {
@@ -168,14 +169,14 @@ function parseAIResponse(response: string): ParsedResponse {
             path: filePath,
             content: codeMatch[1].trim()
           });
-          console.log(`[apply-ai-code-stream] Extracted content for ${filePath}`);
+          log.file('Extracted content', filePath);
           
           // Extract packages from this file
           const filePackages = extractPackagesFromCode(codeMatch[1]);
           for (const pkg of filePackages) {
             if (!sections.packages.includes(pkg)) {
               sections.packages.push(pkg);
-              console.log(`[apply-ai-code-stream] Package detected from imports: ${pkg}`);
+              log.package('Detected from imports', pkg);
             }
           }
         }
@@ -270,24 +271,23 @@ export async function POST(request: NextRequest) {
     }
     
     // Debug log the response
-    console.log('[apply-ai-code-stream] Received response to parse:');
-    console.log('[apply-ai-code-stream] Response length:', response.length);
-    console.log('[apply-ai-code-stream] Response preview:', response.substring(0, 500));
-    console.log('[apply-ai-code-stream] isEdit:', isEdit);
-    console.log('[apply-ai-code-stream] packages:', packages);
+    log.debug('Received response to parse', 'apply-ai-code-stream', {
+      responseLength: response.length,
+      responsePreview: response.substring(0, 200),
+      isEdit,
+      packages
+    });
     
     // Parse the AI response
     const parsed = parseAIResponse(response);
     
     // Log what was parsed
-    console.log('[apply-ai-code-stream] Parsed result:');
-    console.log('[apply-ai-code-stream] Files found:', parsed.files.length);
-    if (parsed.files.length > 0) {
-      parsed.files.forEach(f => {
-        console.log(`[apply-ai-code-stream] - ${f.path} (${f.content.length} chars)`);
-      });
-    }
-    console.log('[apply-ai-code-stream] Packages found:', parsed.packages);
+    log.debug('Parsed result', 'apply-ai-code-stream', {
+      filesFound: parsed.files.length,
+      packagesFound: parsed.packages.length,
+      files: parsed.files.map(f => ({ path: f.path, contentLength: f.content.length })),
+      packages: parsed.packages
+    });
     
     // Initialize existingFiles if not already
     if (!global.existingFiles) {
@@ -300,12 +300,38 @@ export async function POST(request: NextRequest) {
     // If we don't have a sandbox in this instance but we have a sandboxId,
     // reconnect to the existing sandbox
     if (!sandbox && sandboxId) {
-      console.log(`[apply-ai-code-stream] Sandbox ${sandboxId} not in this instance, attempting reconnect...`);
+      log.sandbox('Not in this instance, attempting reconnect', sandboxId);
       
       try {
-        // Reconnect to the existing sandbox using E2B's connect method
-        sandbox = await Sandbox.connect(sandboxId, { apiKey: process.env.E2B_API_KEY });
-        console.log(`[apply-ai-code-stream] Successfully reconnected to sandbox ${sandboxId}`);
+        
+        // Enhanced reconnection with retry logic
+        let retryCount = 0;
+        const maxRetries = 3;
+        const retryDelay = 1000; // 1 second
+        
+        while (retryCount < maxRetries) {
+          try {
+            sandbox = await Sandbox.connect(sandboxId, { 
+              apiKey: process.env.E2B_API_KEY,
+              timeout: 30000 // 30 second timeout
+            });
+            log.sandbox('Successfully reconnected', sandboxId, { attempt: retryCount + 1 });
+            break;
+          } catch (retryError) {
+            retryCount++;
+            log.warn(`Reconnection attempt ${retryCount} failed`, 'apply-ai-code-stream', { 
+              sandboxId, 
+              error: (retryError as Error).message 
+            });
+            
+            if (retryCount < maxRetries) {
+              log.debug(`Retrying in ${retryDelay}ms`, 'apply-ai-code-stream', { sandboxId });
+              await new Promise(resolve => setTimeout(resolve, retryDelay));
+            } else {
+              throw retryError;
+            }
+          }
+        }
         
         // Store the reconnected sandbox globally for this instance
         global.activeSandbox = sandbox;
@@ -324,7 +350,10 @@ export async function POST(request: NextRequest) {
           global.existingFiles = new Set<string>();
         }
       } catch (reconnectError) {
-        console.error(`[apply-ai-code-stream] Failed to reconnect to sandbox ${sandboxId}:`, reconnectError);
+        log.error(`Failed to reconnect to sandbox`, 'apply-ai-code-stream', { 
+          sandboxId, 
+          error: reconnectError 
+        });
         
         // If reconnection fails, we'll still try to return a meaningful response
         return NextResponse.json({
@@ -346,7 +375,7 @@ export async function POST(request: NextRequest) {
     
     // If no sandbox at all and no sandboxId provided, return an error
     if (!sandbox && !sandboxId) {
-      console.log('[apply-ai-code-stream] No sandbox available and no sandboxId provided');
+      log.warn('No sandbox available and no sandboxId provided', 'apply-ai-code-stream');
       return NextResponse.json({
         success: false,
         error: 'No active sandbox found. Please create a sandbox first.',
@@ -407,9 +436,11 @@ export async function POST(request: NextRequest) {
         
         // Log if we found duplicates
         if (allPackages.length !== uniquePackages.length) {
-          console.log(`[apply-ai-code-stream] Removed ${allPackages.length - uniquePackages.length} duplicate packages`);
-          console.log(`[apply-ai-code-stream] Original packages:`, allPackages);
-          console.log(`[apply-ai-code-stream] Deduplicated packages:`, uniquePackages);
+          log.debug('Removed duplicate packages', 'apply-ai-code-stream', {
+            removed: allPackages.length - uniquePackages.length,
+            original: allPackages,
+            deduplicated: uniquePackages
+          });
         }
         
         if (uniquePackages.length > 0) {
@@ -422,10 +453,34 @@ export async function POST(request: NextRequest) {
           
           // Use streaming package installation
           try {
-            // Construct the API URL properly for both dev and production
-            const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
-            const host = req.headers.get('host') || 'localhost:3000';
-            const apiUrl = `${protocol}://${host}/api/install-packages`;
+            // Dynamic API URL construction for install-packages
+            const getApiUrl = () => {
+              // Priority: Environment variable -> Request headers -> Fallback
+              if (process.env.NEXT_PUBLIC_APP_URL) {
+                return `${process.env.NEXT_PUBLIC_APP_URL}/api/install-packages`;
+              }
+              if (process.env.VERCEL_URL) {
+                return `https://${process.env.VERCEL_URL}/api/install-packages`;
+              }
+              if (process.env.CF_PAGES_URL) {
+                return `${process.env.CF_PAGES_URL}/api/install-packages`;
+              }
+              
+              // Extract from request headers if available
+              const host = req.headers.get('host');
+              if (host) {
+                const protocol = req.headers.get('x-forwarded-proto') || 
+                               (process.env.NODE_ENV === 'production' ? 'https' : 'http');
+                return `${protocol}://${host}/api/install-packages`;
+              }
+              
+              // Development fallback
+              return process.env.NODE_ENV === 'development' 
+                ? 'http://localhost:3000/api/install-packages' 
+                : 'https://open-lovable.pages.dev/api/install-packages';
+            };
+            
+            const apiUrl = getApiUrl();
             
             const installResponse = await fetch(apiUrl, {
               method: 'POST',
@@ -471,7 +526,7 @@ export async function POST(request: NextRequest) {
               }
             }
           } catch (error) {
-            console.error('[apply-ai-code-stream] Error installing packages:', error);
+            log.error('Error installing packages', 'apply-ai-code-stream', { error });
             await sendProgress({
               type: 'warning',
               message: `Package installation skipped (${(error as Error).message}). Continuing with file creation...`
@@ -698,7 +753,7 @@ print(f"File written: ${fullPath}")
     });
     
   } catch (error) {
-    console.error('Apply AI code stream error:', error);
+    log.error('Apply AI code stream error', 'apply-ai-code-stream', { error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to parse AI code' },
       { status: 500 }

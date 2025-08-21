@@ -175,7 +175,23 @@ export async function POST(request: NextRequest) {
             
             // STEP 1: Get search plan from AI
             try {
-              const intentResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/analyze-edit-intent`, {
+              // Dynamic URL construction for analyze-edit-intent API
+              const getBaseUrl = () => {
+                // Priority: Environment variable -> Request headers -> Fallback
+                if (process.env.NEXT_PUBLIC_APP_URL) {
+                  return process.env.NEXT_PUBLIC_APP_URL;
+                }
+                if (process.env.VERCEL_URL) {
+                  return `https://${process.env.VERCEL_URL}`;
+                }
+                if (process.env.CF_PAGES_URL) {
+                  return process.env.CF_PAGES_URL;
+                }
+                // Development fallback
+                return process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : 'https://open-lovable.pages.dev';
+              };
+              
+              const intentResponse = await fetch(`${getBaseUrl()}/api/analyze-edit-intent`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ prompt, manifest, model })
@@ -305,7 +321,7 @@ User request: "${prompt}"`;
               
               try {
                 // Fetch files directly from sandbox
-                const filesResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/get-sandbox-files`, {
+                const filesResponse = await fetch(`${getBaseUrl()}/api/get-sandbox-files`, {
                   method: 'GET',
                   headers: { 'Content-Type': 'application/json' }
                 });
@@ -319,7 +335,7 @@ User request: "${prompt}"`;
                     
                     // Now try to analyze edit intent with the fetched manifest
                     try {
-                      const intentResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/analyze-edit-intent`, {
+                      const intentResponse = await fetch(`${getBaseUrl()}/api/analyze-edit-intent`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ prompt, manifest, model })
