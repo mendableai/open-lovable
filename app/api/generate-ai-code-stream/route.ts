@@ -4,6 +4,7 @@ import { createAnthropic } from '@ai-sdk/anthropic';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { streamText } from 'ai';
+import { ProxyAgent } from 'undici';
 import type { SandboxState } from '@/types/sandbox';
 import { selectFilesForEdit, getFileContents, formatFilesForAI } from '@/lib/context-selector';
 import { executeSearchPlan, formatSearchResultsForAI, selectTargetFile } from '@/lib/file-search-executor';
@@ -20,8 +21,39 @@ const anthropic = createAnthropic({
   baseURL: process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com/v1',
 });
 
+// Create ProxyAgent if proxy is configured
+const proxyUrl = process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
+
+if (proxyUrl) {
+  console.log('[generate-ai-code-stream] Using proxy for Google Gemini API:', proxyUrl);
+}
+
 const googleGenerativeAI = createGoogleGenerativeAI({
   apiKey: process.env.GEMINI_API_KEY,
+  baseURL: process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta',
+  fetch: proxyUrl ? async (url: RequestInfo | URL, init?: RequestInit) => {
+    // Custom fetch with proxy support and enhanced timeout handling
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+    
+    try {
+      // Use Node's native fetch with dispatcher option for proxy
+      const response = await fetch(url, {
+        ...init,
+        signal: controller.signal,
+        // @ts-expect-error - dispatcher is a valid option for undici
+        dispatcher: new ProxyAgent(proxyUrl)
+      });
+      clearTimeout(timeoutId);
+      return response;
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+      if (error.name === 'AbortError') {
+        throw new Error('Google Gemini API timeout after 60 seconds');
+      }
+      throw error;
+    }
+  } : undefined,
 });
 
 const openai = createOpenAI({
@@ -170,7 +202,7 @@ export async function POST(request: NextRequest) {
           if (manifest) {
             await sendProgress({ type: 'status', message: '🔍 Creating search plan...' });
             
-            const fileContents = global.sandboxState.fileCache.files;
+            const fileContents = global.sandboxState.fileCache?.files || {};
             console.log('[generate-ai-code-stream] Files available for search:', Object.keys(fileContents).length);
             
             // STEP 1: Get search plan from AI
@@ -331,7 +363,7 @@ User request: "${prompt}"`;
                         
                         // For now, fall back to keyword search since we don't have file contents for search execution
                         // This path happens when no manifest was initially available
-                        let targetFiles = [];
+                        let targetFiles: string[] = [];
                         if (!searchPlan || searchPlan.searchTerms.length === 0) {
                           console.warn('[generate-ai-code-stream] No target files after fetch, searching for relevant files');
                           
@@ -955,13 +987,15 @@ CRITICAL: When files are provided in the context:
                   // Store files in cache
                   for (const [path, content] of Object.entries(filesData.files)) {
                     const normalizedPath = path.replace('/home/user/app/', '');
-                    global.sandboxState.fileCache.files[normalizedPath] = {
-                      content: content as string,
-                      lastModified: Date.now()
-                    };
+                    if (global.sandboxState.fileCache) {
+                      global.sandboxState.fileCache.files[normalizedPath] = {
+                        content: content as string,
+                        lastModified: Date.now()
+                      };
+                    }
                   }
                   
-                  if (filesData.manifest) {
+                  if (filesData.manifest && global.sandboxState.fileCache) {
                     global.sandboxState.fileCache.manifest = filesData.manifest;
                     
                     // Now try to analyze edit intent with the fetched manifest
@@ -993,7 +1027,7 @@ CRITICAL: When files are provided in the context:
                   }
                   
                   // Update variables
-                  backendFiles = global.sandboxState.fileCache.files;
+                  backendFiles = global.sandboxState.fileCache?.files || {};
                   hasBackendFiles = Object.keys(backendFiles).length > 0;
                   console.log('[generate-ai-code-stream] Updated backend cache with fetched files');
                 }
@@ -1594,8 +1628,18 @@ Provide the complete file content without any truncation. Include all necessary 
                   completionClient = groq;
                 }
                 
+                // Determine the actual model name based on the provider
+                let completionModel = model;
+                if (model.includes('anthropic/')) {
+                  completionModel = model.replace('anthropic/', '');
+                } else if (model.includes('google/')) {
+                  completionModel = model.replace('google/', '');
+                } else if (model === 'openai/gpt-5') {
+                  completionModel = 'gpt-5';
+                }
+                
                 const completionResult = await streamText({
-                  model: completionClient(modelMapping[model] || model),
+                  model: completionClient(completionModel),
                   messages: [
                     { 
                       role: 'system', 
@@ -1603,8 +1647,7 @@ Provide the complete file content without any truncation. Include all necessary 
                     },
                     { role: 'user', content: completionPrompt }
                   ],
-                  temperature: isGPT5 ? undefined : appConfig.ai.defaultTemperature,
-                  maxTokens: appConfig.ai.truncationRecoveryMaxTokens
+                  temperature: model.includes('gpt-5') ? undefined : appConfig.ai.defaultTemperature
                 });
                 
                 // Get the full text from the stream

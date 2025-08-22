@@ -4,6 +4,7 @@ import { createAnthropic } from '@ai-sdk/anthropic';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { generateObject } from 'ai';
+import { ProxyAgent } from 'undici';
 import { z } from 'zod';
 import type { FileManifest } from '@/types/file-manifest';
 
@@ -104,7 +105,41 @@ export async function POST(request: NextRequest) {
         aiModel = openai(model.replace('openai/', ''));
       }
     } else if (model.startsWith('google/')) {
-      aiModel = createGoogleGenerativeAI(model.replace('google/', ''));
+      // Create ProxyAgent if proxy is configured
+      const proxyUrl = process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
+      
+      if (proxyUrl) {
+        console.log('[analyze-edit-intent] Using proxy for Google Gemini API:', proxyUrl);
+      }
+      
+      const googleProvider = createGoogleGenerativeAI({
+        apiKey: process.env.GEMINI_API_KEY,
+        baseURL: process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta',
+        fetch: proxyUrl ? async (url: RequestInfo | URL, init?: RequestInit) => {
+          // Custom fetch with proxy support
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 60000);
+          
+          try {
+            // Use Node's native fetch with dispatcher option for proxy
+            const response = await fetch(url, {
+              ...init,
+              signal: controller.signal,
+              // @ts-expect-error - dispatcher is a valid option for undici
+              dispatcher: new ProxyAgent(proxyUrl)
+            });
+            clearTimeout(timeoutId);
+            return response;
+          } catch (error: any) {
+            clearTimeout(timeoutId);
+            if (error.name === 'AbortError') {
+              throw new Error('Google Gemini API timeout after 60 seconds');
+            }
+            throw error;
+          }
+        } : undefined,
+      });
+      aiModel = googleProvider(model.replace('google/', ''));
     } else {
       // Default to groq if model format is unclear
       aiModel = groq(model);
